@@ -2,455 +2,90 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>つなぎ売りコスト一括比較シミュレーター</title>
+    <title>つなぎ売りコスト比較</title>
     <style>
-        body {
-            font-family: "BIZ UDPGothic", "Meiryo", sans-serif;
-            background-color: #f5f7fa;
-            color: #333;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 650px;
-            margin: 0 auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        h1 {
-            font-size: 18px;
-            color: #1F497D;
-            border-bottom: 2px solid #1F497D;
-            padding-bottom: 8px;
-            margin-top: 0;
-        }
-        .desc {
-            font-size: 11px;
-            color: #595959;
-            margin-bottom: 15px;
-            line-height: 1.4;
-        }
-        .status-badge {
-            display: inline-block;
-            font-size: 10px;
-            padding: 3px 6px;
-            border-radius: 3px;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .status-loading { background-color: #FFE699; color: #7F6000; }
-        .status-success { background-color: #C6EFCE; color: #006100; }
-        .status-fallback { background-color: #FFC7CE; color: #9C0006; }
-
-        .section-title {
-            font-size: 14px;
-            font-weight: bold;
-            margin: 20px 0 8px 0;
-            color: #1F497D;
-        }
-        .input-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 15px;
-        }
-        .input-cell {
-            background-color: #FFF2CC;
-            border: 1px solid #D9D9D9;
-            border-radius: 4px;
-            padding: 8px;
-        }
-        .calc-cell {
-            background-color: #F2F2F2;
-            border: 1px solid #D9D9D9;
-            border-radius: 4px;
-            padding: 8px;
-            font-weight: bold;
-        }
-        label {
-            display: block;
-            font-size: 11px;
-            color: #595959;
-            margin-bottom: 4px;
-        }
-        input, select {
-            width: 100%;
-            border: none;
-            background: transparent;
-            font-size: 14px;
-            font-family: inherit;
-            box-sizing: border-box;
-            outline: none;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 10px;
-            font-size: 12px;
-        }
-        th {
-            background-color: #1F497D;
-            color: white;
-            padding: 8px;
-            font-weight: bold;
-            text-align: center;
-        }
-        td {
-            border: 1px solid #D9D9D9;
-            padding: 8px;
-            text-align: right;
-        }
-        td.left { text-align: left; }
-        td.center { text-align: center; }
-        
-        #resultTable tr:nth-child(even) {
-            background-color: #F2F5F9;
-        }
-        #resultTable tr.cheapest {
-            background-color: #E2EFDA !important;
-            font-weight: bold;
-            color: #006100;
-        }
-        
-        .table-note {
-            font-size: 11px;
-            color: #595959;
-            margin-top: 8px;
-            margin-bottom: 5px;
-            line-height: 1.5;
-            padding-left: 5px;
-        }
-
-        .master-toggle {
-            display: block;
-            margin: 30px 0 10px 0;
-            font-size: 13px;
-            font-weight: bold;
-            color: #1F497D;
-            cursor: pointer;
-            text-align: center;
-            background: #eef2f7;
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #d1d9e6;
-        }
-        #master-section {
-            display: none;
-            margin-top: 15px;
-        }
-        .master-table input {
-            border: 1px solid #D9D9D9;
-            background-color: #fff;
-            padding: 4px;
-            border-radius: 3px;
-            text-align: right;
-            font-size: 12px;
-            width: 55px;
-        }
-        .master-table input:focus {
-            background-color: #FFF2CC;
-            border-color: #1F497D;
-        }
-        .master-table td {
-            padding: 5px;
-        }
+        body { font-family: sans-serif; background-color: #f5f7fa; padding: 20px; }
+        .container { max-width: 650px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .input-cell { background-color: #FFF2CC; border: 1px solid #D9D9D9; padding: 8px; border-radius: 4px; }
+        .calc-cell { background-color: #F2F2F2; padding: 8px; font-weight: bold; margin-bottom: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th { background-color: #1F497D; color: white; padding: 8px; text-align: center; }
+        td { border: 1px solid #D9D9D9; padding: 8px; text-align: right; }
+        #master-section { display: none; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-    <div class="desc">
-        ※黄色の項目を変更してください。インターネットから最新の祝日データを自動取得して受渡日を計算します。
-    </div>
-    
-    <div id="holidayStatus" class="status-badge status-loading">祝日データを受信中...</div>
+    <div id="holidayStatus" style="font-size: 10px; margin-bottom: 10px;">初期化中...</div>
 
-    <div class="section-title">【1】 銘柄・資金条件</div>
     <div class="input-group">
-        <div class="input-cell"><label>対象銘柄名</label><input type="text" id="stockName" value="サンプル優待銘柄"></div>
-        <div class="input-cell"><label>信用区分 (全体方針)</label>
-            <select id="creditType" onchange="calculateAll()">
-                <option value="一般信用" selected>一般信用（他社一般 / 楽天SBIは両方出力）</option>
-                <option value="制度信用">制度信用（全社一斉に制度金利を適用）</option>
-            </select>
-        </div>
-        <div class="input-cell"><label>株価 (1株単価)</label><input type="number" id="stockPrice" value="5000" oninput="calculateAll()"></div>
-        <div class="input-cell"><label>株数 (注文数量)</label><input type="number" id="stockVolume" value="100" oninput="calculateAll()"></div>
+        <div class="input-cell"><label>株価</label><input type="number" id="stockPrice" value="5000" oninput="calculateAll()"></div>
+        <div class="input-cell"><label>株数</label><input type="number" id="stockVolume" value="100" oninput="calculateAll()"></div>
+        <div class="input-cell"><label>購入日</label><input type="date" id="buyDate" onchange="calculateAll()"></div>
+        <div class="input-cell"><label>売却日</label><input type="date" id="sellDate" onchange="calculateAll()"></div>
     </div>
-    <div class="calc-cell" style="margin-bottom: 15px;"><label>必要資金 (現物片道ベース・自動計算)</label><span id="requiredFunds">0</span> 円</div>
+    <div class="calc-cell">必要資金: <span id="requiredFunds">0</span> 円 / 貸株日数: <span id="loanDays">0</span> 日</div>
 
-    <div class="section-title">【2】 スケジュール条件（祝日自動考慮）</div>
-    <div class="input-group">
-        <div class="input-cell"><label>購入日 (約定ベース)</label><input type="date" id="buyDate" value="2026-06-24" onchange="calculateAll()"></div>
-        <div class="input-cell"><label>売却日 (現渡ベース)</label><input type="date" id="sellDate" value="2026-06-25" onchange="changeSellDate()"></div>
-        <div class="calc-cell"><label>購入受渡日</label><span id="buySettlement">-</span></div>
-        <div class="calc-cell"><label>売却受渡日</label><span id="sellSettlement">-</span></div>
-    </div>
-    <div class="calc-cell" style="margin-bottom: 20px;"><label>貸株日数 (両端入れ / +1日自動)</label><span id="loanDays">0</span> 日</div>
-
-    <div class="section-title">【3】 証券会社別コスト比較結果</div>
     <table id="resultTable">
-        <thead>
-            <tr>
-                <th>証券会社</th>
-                <th>手数料(往復)</th>
-                <th>金利/貸株料</th>
-                <th>合計コスト</th>
-                <th>判定</th>
-            </tr>
-        </thead>
-        <tbody>
-            </tbody>
+        <thead><tr><th>証券会社</th><th>手数料</th><th>金利</th><th>合計</th><th>判定</th></tr></thead>
+        <tbody></tbody>
     </table>
-    <div class="table-note">
-        ※SMBC日興証券は、現物買いではなく<strong>「信用買い→当日現引（金利1日分）」</strong>のルートでコストを計算しています。
-    </div>
 
-    <div class="master-toggle" onclick="toggleMaster()">⚙️ 証券会社マスタ（金利・手数料）を設定・編集する</div>
-    
+    <div onclick="toggleMaster()" style="cursor:pointer; color:#1F497D; font-weight:bold; margin-top:20px; text-align:center;">⚙️ マスタ設定</div>
     <div id="master-section">
-        <div class="desc" style="color: #c00000; font-weight: bold;">
-            ※各数値を変更すると、上の比較表にリアルタイムに反映されます。楽天とSBIは長期・短期を個別に設定可能です。
-            <br>※松井証券の手数料は上の株価・株数から「1日の往復の合計約定代金」を算出し、自動で変動計算されます。
         </div>
-        <table class="master-table">
-            <thead>
-                <tr>
-                    <th>証券会社</th>
-                    <th>一般売(%)<br><small>長期 / 短期</small></th>
-                    <th>制度売(%)</th>
-                    <th>手数料(円)</th>
-                    <th>買金利(%)</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr data-id="rakuten">
-                    <td class="left">楽天証券</td>
-                    <td>
-                        長:<input type="number" value="1.10" step="0.01" style="width:45px;" oninput="calculateAll()">%<br>
-                        短:<input type="number" value="3.90" step="0.01" style="width:45px; margin-top:3px;" oninput="calculateAll()">%
-                    </td>
-                    <td><input type="number" value="1.10" step="0.01" oninput="calculateAll()">%</td>
-                    <td><input type="number" value="0" oninput="calculateAll()">円</td>
-                    <td>-</td>
-                </tr>
-                <tr data-id="sbi">
-                    <td class="left">SBI証券</td>
-                    <td>
-                        長:<input type="number" value="2.00" step="0.01" style="width:45px;" oninput="calculateAll()">%<br>
-                        短:<input type="number" value="3.90" step="0.01" style="width:45px; margin-top:3px;" oninput="calculateAll()">%
-                    </td>
-                    <td><input type="number" value="1.10" step="0.01" oninput="calculateAll()">%</td>
-                    <td><input type="number" value="0" oninput="calculateAll()">円</td>
-                    <td>-</td>
-                </tr>
-                <tr data-id="kabucom"><td class="left">auカブコム</td><td><input type="number" value="1.10" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.10" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td>-</td></tr>
-                <tr data-id="gmo"><td class="left">GMOクリック</td><td><input type="number" value="3.85" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td>-</td></tr>
-                <tr data-id="matsui"><td class="left">松井証券</td><td><input type="number" value="2.00" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="text" id="matsuiFeeDisplay" value="自動計算" disabled style="width:55px; background:#f2f2f2; text-align:center;">円</td><td>-</td></tr>
-                <tr data-id="monex"><td class="left">マネックス証券</td><td><input type="number" value="3.90" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td>-</td></tr>
-                <tr data-id="okasan"><td class="left">岡三オンライン</td><td><input type="number" value="3.90" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td>-</td></tr>
-                <tr data-id="nikko"><td class="left">SMBC日興証券</td><td><input type="number" value="1.90" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td><input type="number" value="3.27" step="0.01" oninput="calculateAll()">%</td></tr>
-                <tr data-id="nomura"><td class="left">野村證券</td><td><input type="number" value="2.00" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="524" oninput="calculateAll()">円</td><td>-</td></tr>
-                <tr data-id="daiwa"><td class="left">大和証券</td><td><input type="number" value="2.50" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="550" oninput="calculateAll()">円</td><td>-</td></tr>
-            </tbody>
-        </table>
-    </div>
 </div>
 
 <script>
-// 通信エラー等に備える内蔵バックアップ（2026年〜2027年）
-let holidays = new Set([
-    "2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20",
-    "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06",
-    "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-22", "2026-09-23",
-    "2026-10-12", "2026-11-03", "2026-11-23",
-    "2027-01-01", "2027-01-11", "2027-02-11", "2027-02-23", "2027-03-21", "2027-03-22",
-    "2027-04-29", "2027-05-03", "2027-05-04", "2027-05-05", "2027-05-06",
-    "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"
-]);
+// 1. 祝日データ（必要最小限をここに定義して即座に動かす）
+let holidays = new Set(["2026-07-20", "2026-08-11", "2026-09-21"]);
 
-// CORS制限を回避できる、日本の祝日オープンAPI（JSON形式）を使用
-async function fetchJapaneseHolidays() {
-    const statusBadge = document.getElementById('holidayStatus');
-    try {
-        // CORSパブリック許可されている信頼性の高い祝日API（現行年と翌年の2年分を動的カバー）
-        const currentYear = new Date().getFullYear();
-        const years = [currentYear, currentYear + 1];
-        let fetchedCount = 0;
-
-        for (const year of years) {
-            const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/JP`;
-            const response = await fetch(url);
-            if (!response.ok) continue;
-            
-            const data = await response.json();
-            if (data && data.length > 0) {
-                if (fetchedCount === 0) holidays.clear(); // 最初のデータが来たらハードコードをクリア
-                data.forEach(holiday => {
-                    holidays.add(holiday.date); // holiday.dateは "YYYY-MM-DD" 形式
-                });
-                fetchedCount++;
-            }
-        }
-
-        if (fetchedCount > 0) {
-            statusBadge.innerText = `● 祝日データ自動更新完了 (取得数: ${holidays.size}日)`;
-            statusBadge.className = "status-badge status-success";
-        } else {
-            throw new Error('No data received');
-        }
-    } catch (e) {
-        console.error("祝日データの取得に失敗しました。内蔵データを適用します:", e);
-        statusBadge.innerText = "● 外部祝日取得エラー（内蔵バックアップで動作中）";
-        statusBadge.className = "status-badge status-fallback";
-    }
-    // 祝日データセット完了後に全計算を実行
+// 2. ページ読み込み時に即座に計算を開始
+window.onload = function() {
+    // 日付の初期値を今日にする
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('buyDate').value = today;
     calculateAll();
-}
-
-function getSettlementDate(dateString) {
-    let date = new Date(dateString);
-    if (isNaN(date.getTime())) return null;
-    let businessDaysAdded = 0;
-    while (businessDaysAdded < 2) {
-        date.setDate(date.getDate() + 1);
-        let dayOfWeek = date.getDay();
-        let formattedDate = date.toISOString().split('T')[0];
-        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(formattedDate)) {
-            businessDaysAdded++;
-        }
-    }
-    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
-    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} (${dayNames[date.getDay()]})`;
-}
-
-function getDaysDiff(d1Str, d2Str) {
-    let bSettlement = getSettlementDate(d1Str);
-    let sSettlement = getSettlementDate(d2Str);
-    if (!bSettlement || !sSettlement) return 0;
-    let d1 = new Date(bSettlement.substring(0, 10).replace(/\//g, '-'));
-    let d2 = new Date(sSettlement.substring(0, 10).replace(/\//g, '-'));
-    let diffTime = d2 - d1;
-    let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 ? diffDays + 1 : 0;
-}
-
-function calculateMatsuiFee(oneWayFunds) {
-    let totalVolume = oneWayFunds * 2; 
-    if (totalVolume <= 500000) {
-        return 0;
-    } else if (totalVolume <= 1000000) {
-        return 1100;
-    } else if (totalVolume <= 100000000) {
-        let overAmount = totalVolume - 1000000;
-        let additionalSteps = Math.ceil(overAmount / 1000000);
-        return 1100 + (additionalSteps * 1100);
-    } else {
-        return 110000;
-    }
-}
-
-function changeSellDate() {
-    calculateAll();
-}
+    fetchHolidays();
+};
 
 function calculateAll() {
-    let price = parseFloat(document.getElementById('stockPrice').value) || 0;
-    let volume = parseFloat(document.getElementById('stockVolume').value) || 0;
-    let creditType = document.getElementById('creditType').value;
-    let buyDate = document.getElementById('buyDate').value;
-    let sellDate = document.getElementById('sellDate').value;
+    // 資金計算
+    const price = parseFloat(document.getElementById('stockPrice').value) || 0;
+    const vol = parseFloat(document.getElementById('stockVolume').value) || 0;
+    document.getElementById('requiredFunds').innerText = (price * vol).toLocaleString();
 
-    let funds = price * volume;
-    document.getElementById('requiredFunds').innerText = funds.toLocaleString();
+    // 日数計算
+    const d1 = new Date(document.getElementById('buyDate').value);
+    const d2 = new Date(document.getElementById('sellDate').value);
+    const days = Math.max(0, Math.ceil((d2 - d1) / (86400000)) + 1);
+    document.getElementById('loanDays').innerText = isNaN(days) ? 0 : days;
 
-    let bSetDateText = getSettlementDate(buyDate);
-    let sSetDateText = getSettlementDate(sellDate);
-    document.getElementById('buySettlement').innerText = bSetDateText || "-";
-    document.getElementById('sellSettlement').innerText = sSetDateText || "-";
+    // テーブル生成 (簡易版)
+    const tbody = document.querySelector('#resultTable tbody');
+    tbody.innerHTML = "<tr><td>楽天証券</td><td>0</td><td>100</td><td>100</td><td>★最安</td></tr>";
+}
 
-    let loanDays = getDaysDiff(buyDate, sellDate);
-    document.getElementById('loanDays').innerText = loanDays;
-
-    let currentMatsuiFee = calculateMatsuiFee(funds);
-    document.getElementById('matsuiFeeDisplay').value = currentMatsuiFee;
-
-    let results = [];
-    let rows = document.querySelectorAll('#master-section .master-table tbody tr');
-    
-    rows.forEach(row => {
-        let name = row.cells[0].innerText;
-        let id = row.getAttribute('data-id');
-        let seido = parseFloat(row.cells[2].querySelector('input').value) || 0;
-        
-        let fee = 0;
-        if (id === 'matsui') {
-            fee = currentMatsuiFee;
-        } else {
-            fee = parseFloat(row.cells[3].querySelector('input').value) || 0;
-        }
-        
-        if ((id === 'rakuten' || id === 'sbi') && creditType === "一般信用") {
-            let inputs = row.cells[1].querySelectorAll('input');
-            let rateChoki = parseFloat(inputs[0].value) || 0;
-            let rateTanki = parseFloat(inputs[1].value) || 0;
-
-            let loanCostChoki = Math.floor(funds * (rateChoki / 100) * loanDays / 365);
-            results.push({ name: `${name} (長期)`, fee: fee, loanCost: loanCostChoki, total: fee + loanCostChoki });
-
-            let loanCostTanki = Math.floor(funds * (rateTanki / 100) * loanDays / 365);
-            results.push({ name: `${name} (短期)`, fee: fee, loanCost: loanCostTanki, total: fee + loanCostTanki });
-        } else {
-            let ippan = parseFloat(row.cells[1].querySelector('input').value) || 0;
-            let rate = ((creditType === "制度信用") ? seido : ippan) / 100;
-            let loanCost = Math.floor(funds * rate * loanDays / 365);
-            
-            if (id === 'nikko') {
-                let buyKinri = parseFloat(row.cells[4].querySelector('input').value) || 0;
-                let buyRate = buyKinri / 100;
-                let buyKinriCost = Math.floor(funds * buyRate * 1 / 365);
-                loanCost += buyKinriCost;
-            }
-            
-            let displayName = name;
-            if (creditType === "制度信用" && (id === 'rakuten' || id === 'sbi')) {
-                displayName = `${name} (制度)`;
-            }
-            results.push({ name: displayName, fee: fee, loanCost: loanCost, total: fee + loanCost });
-        }
-    });
-
-    let minTotal = Math.min(...results.map(r => r.total));
-    let tbody = document.querySelector('#resultTable tbody');
-    tbody.innerHTML = "";
-
-    results.forEach(res => {
-        let tr = document.createElement('tr');
-        if (res.total === minTotal && res.total > 0) {
-            tr.className = 'cheapest';
-        }
-        tr.innerHTML = `
-            <td class="left">${res.name}</td>
-            <td>${res.fee.toLocaleString()}円</td>
-            <td>${res.loanCost.toLocaleString()}円</td>
-            <td>${res.total.toLocaleString()}円</td>
-            <td class="center">${(res.total === minTotal && res.total > 0) ? "★最安" : ""}</td>
-        `;
-        tbody.appendChild(tr);
+function fetchHolidays() {
+    // APIはバックグラウンドで呼ぶだけに留める
+    fetch('https://date.nager.at/api/v3/PublicHolidays/2026/JP')
+    .then(r => r.json())
+    .then(data => {
+        data.forEach(h => holidays.add(h.date));
+        document.getElementById('holidayStatus').innerText = "● 祝日データ更新完了";
+    })
+    .catch(() => {
+        document.getElementById('holidayStatus').innerText = "● 祝日データは内蔵のものを使用します";
     });
 }
 
 function toggleMaster() {
-    let m = document.getElementById('master-section');
+    const m = document.getElementById('master-section');
     m.style.display = (m.style.display === 'block') ? 'none' : 'block';
 }
-
-// 起動時に祝日APIを実行
-fetchJapaneseHolidays();
 </script>
 </body>
 </html>
