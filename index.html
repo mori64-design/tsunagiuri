@@ -3,96 +3,74 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>つなぎ売りコスト一括比較シミュレーター</title>
+    <title>つなぎ売りコスト比較</title>
     <style>
-        :root {
-            --primary-color: #1F497D;
-            --bg-color: #f5f7fa;
-            --card-bg: #fff;
-            --input-bg: #FFF2CC;
-            --calc-bg: #F2F2F2;
-            --border-color: #D9D9D9;
-            --text-main: #333;
-            --text-muted: #595959;
-            --success-bg: #E2EFDA;
-            --success-text: #006100;
-        }
-
-        body { font-family: "BIZ UDPGothic", "Meiryo", "Helvetica Neue", Arial, sans-serif; background-color: var(--bg-color); color: var(--text-main); margin: 0; padding: 20px; line-height: 1.4; }
+        :root { --primary-color: #1F497D; --bg-color: #f5f7fa; --card-bg: #fff; --input-bg: #FFF2CC; --calc-bg: #F2F2F2; --border-color: #D9D9D9; }
+        body { font-family: sans-serif; background-color: var(--bg-color); padding: 20px; }
         .container { max-width: 680px; margin: 0 auto; background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-        h1 { font-size: 20px; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; margin-top: 0; }
-        .section-title { font-size: 14px; font-weight: bold; margin: 20px 0 8px 0; color: var(--primary-color); }
         .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
-        .input-cell { background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: 8px 10px; }
-        .calc-cell { background-color: var(--calc-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: 8px 10px; font-weight: bold; }
-        label { display: block; font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
-        input, select { width: 100%; border: none; background: transparent; font-size: 14px; outline: none; }
+        .input-cell { background-color: var(--input-bg); border: 1px solid var(--border-color); padding: 8px; }
+        .calc-cell { background-color: var(--calc-bg); border: 1px solid var(--border-color); padding: 8px; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th { background-color: var(--primary-color); color: white; padding: 10px 8px; text-align: center; }
-        td { border: 1px solid var(--border-color); padding: 9px 8px; text-align: right; }
-        .cheapest { background-color: var(--success-bg) !important; font-weight: bold; color: var(--success-text); }
-        .master-toggle { display: block; margin: 30px 0 10px 0; font-size: 12px; font-weight: bold; color: var(--primary-color); cursor: pointer; text-align: center; background: #eef2f7; padding: 10px; border-radius: 4px; border: 1px solid #d1d9e6; }
-        #master-section { display: none; margin-top: 15px; }
-        .master-table input { border: 1px solid var(--border-color); width: 55px; text-align: right; }
+        th, td { border: 1px solid var(--border-color); padding: 8px; text-align: right; }
+        th { background-color: var(--primary-color); color: white; text-align: center; }
+        #master-section { display: none; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-    
-    <div class="section-title">【1】 銘柄・資金条件</div>
+    <h1>つなぎ売りコスト比較シミュレーター</h1>
     <div class="input-group">
-        <div class="input-cell"><label>対象銘柄名</label><input type="text" id="stockName" placeholder="銘柄名を入力"></div>
-        <div class="input-cell"><label>信用区分</label>
-            <select id="creditType" onchange="calculateAll()">
-                <option value="一般信用">一般信用</option>
-                <option value="制度信用">制度信用</option>
-            </select>
-        </div>
-        <div class="input-cell"><label>株価 (1株単価)</label><input type="number" id="stockPrice" value="0" oninput="calculateAll()"></div>
+        <div class="input-cell"><label>株価</label><input type="number" id="stockPrice" value="0" oninput="calculateAll()"></div>
         <div class="input-cell"><label>株数</label><input type="number" id="stockVolume" value="100" oninput="calculateAll()"></div>
-    </div>
-    <div class="calc-cell" style="margin-bottom: 15px;"><label>必要資金</label><span id="requiredFunds">0</span> 円</div>
-
-    <div class="section-title">【2】 スケジュール条件</div>
-    <div class="input-group">
         <div class="input-cell"><label>購入日</label><input type="date" id="buyDate" onchange="calculateAll()"></div>
         <div class="input-cell"><label>売却日</label><input type="date" id="sellDate" onchange="calculateAll()"></div>
-        <div class="calc-cell"><label>貸株日数</label><span id="loanDays">0</span> 日</div>
     </div>
+    <div class="calc-cell">必要資金: <span id="requiredFunds">0</span> 円 / 貸株日数: <span id="loanDays">0</span> 日</div>
 
-    <div class="section-title">【3】 証券会社別コスト比較</div>
     <table id="resultTable">
-        <thead><tr><th>証券会社</th><th>手数料</th><th>金利/貸株料</th><th>合計コスト</th><th>判定</th></tr></thead>
+        <thead><tr><th>証券会社</th><th>手数料</th><th>金利</th><th>合計</th></tr></thead>
         <tbody></tbody>
     </table>
 
-    <div class="master-toggle" onclick="toggleMaster()">⚙️ 証券会社マスタをカスタマイズする</div>
+    <div style="cursor:pointer; color:blue; margin-top:20px;" onclick="document.getElementById('master-section').style.display='block'">⚙️ マスタを表示</div>
     <div id="master-section">
         <table class="master-table">
-            <thead><tr><th>証券会社</th><th>一般売(%)</th><th>制度売(%)</th><th>手数料</th></tr></thead>
+            <thead><tr><th>証券会社</th><th>金利(%)</th><th>手数料(円)</th></tr></thead>
             <tbody>
-                </tbody>
+                <tr><td>楽天証券</td><td><input type="number" class="rate" value="1.1" oninput="calculateAll()"></td><td><input type="number" class="fee" value="0" oninput="calculateAll()"></td></tr>
+                <tr><td>SBI証券</td><td><input type="number" class="rate" value="1.1" oninput="calculateAll()"></td><td><input type="number" class="fee" value="0" oninput="calculateAll()"></td></tr>
+            </tbody>
         </table>
     </div>
 </div>
 
 <script>
-// 日数計算ロジックのみを残し、自動取得処理をすべて削除しました
 function calculateAll() {
-    let price = parseFloat(document.getElementById('stockPrice').value) || 0;
-    let volume = parseFloat(document.getElementById('stockVolume').value) || 0;
-    let funds = price * volume;
+    const price = parseFloat(document.getElementById('stockPrice').value) || 0;
+    const vol = parseFloat(document.getElementById('stockVolume').value) || 0;
+    const funds = price * vol;
     document.getElementById('requiredFunds').innerText = funds.toLocaleString();
-    
-    // 計算ロジックをここに記述
-    // (マスタ入力値を基にしたコスト計算は以前のロジックがそのまま使えます)
-}
 
-function toggleMaster() {
-    let m = document.getElementById('master-section');
-    m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+    const d1 = new Date(document.getElementById('buyDate').value);
+    const d2 = new Date(document.getElementById('sellDate').value);
+    const days = Math.max(0, Math.ceil((d2 - d1) / (1000 * 60 * 60 * 24)));
+    document.getElementById('loanDays').innerText = days;
+
+    const tbody = document.querySelector('#resultTable tbody');
+    tbody.innerHTML = "";
+
+    document.querySelectorAll('#master-section tbody tr').forEach(row => {
+        const name = row.cells[0].innerText;
+        const rate = parseFloat(row.querySelector('.rate').value) || 0;
+        const fee = parseFloat(row.querySelector('.fee').value) || 0;
+        
+        const interest = Math.floor(funds * (rate / 100) * days / 365);
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${name}</td><td>${fee}</td><td>${interest}</td><td>${fee + interest}</td>`;
+        tbody.appendChild(tr);
+    });
 }
 </script>
 </body>
