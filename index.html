@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -262,45 +263,53 @@
 </div>
 
 <script>
-// 万が一の通信エラー時やオフライン時に機能させるバックアップ用の直近祝日データ
+// 通信エラー等に備える内蔵バックアップ（2026年〜2027年）
 let holidays = new Set([
     "2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20",
     "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06",
     "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-22", "2026-09-23",
-    "2026-10-12", "2026-11-03", "2026-11-23"
+    "2026-10-12", "2026-11-03", "2026-11-23",
+    "2027-01-01", "2027-01-11", "2027-02-11", "2027-02-23", "2027-03-21", "2027-03-22",
+    "2027-04-29", "2027-05-03", "2027-05-04", "2027-05-05", "2027-05-06",
+    "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"
 ]);
 
-// 【新機能】Googleカレンダーの公開公開データから日本の祝日を動的取得（登録不要・無料・期限なし）
+// CORS制限を回避できる、日本の祝日オープンAPI（JSON形式）を使用
 async function fetchJapaneseHolidays() {
     const statusBadge = document.getElementById('holidayStatus');
     try {
-        // 最も安定しているGoogle公式の日本の祝日カレンダー(JST)の配信フィードを使用
-        const url = "https://calendar.google.com/calendar/ical/ja.japanese%23holiday%40group.v.calendar.google.com/public/full.ics";
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Network error');
-        
-        const text = await response.text();
-        
-        // iCalendar形式(.ics)から日付(DTSTART)を抽出する簡易パーサー
-        const matches = text.match(/DTSTART;VALUE=DATE:\d{8}/g);
-        if (matches && matches.length > 0) {
-            holidays.clear(); // 古いハードコードデータをクリア
-            matches.forEach(match => {
-                const dateStr = match.split(':')[1]; // YYYYMMDD
-                const formattedDate = `${dateStr.substring(0,4)}-${dateStr.substring(4,6)}-${dateStr.substring(6,8)}`;
-                holidays.add(formattedDate);
-            });
+        // CORSパブリック許可されている信頼性の高い祝日API（現行年と翌年の2年分を動的カバー）
+        const currentYear = new Date().getFullYear();
+        const years = [currentYear, currentYear + 1];
+        let fetchedCount = 0;
+
+        for (const year of years) {
+            const url = `https://date.nager.at/api/v3/PublicHolidays/${year}/JP`;
+            const response = await fetch(url);
+            if (!response.ok) continue;
+            
+            const data = await response.json();
+            if (data && data.length > 0) {
+                if (fetchedCount === 0) holidays.clear(); // 最初のデータが来たらハードコードをクリア
+                data.forEach(holiday => {
+                    holidays.add(holiday.date); // holiday.dateは "YYYY-MM-DD" 形式
+                });
+                fetchedCount++;
+            }
+        }
+
+        if (fetchedCount > 0) {
             statusBadge.innerText = `● 祝日データ自動更新完了 (取得数: ${holidays.size}日)`;
             statusBadge.className = "status-badge status-success";
         } else {
-            throw new Error('Parse error');
+            throw new Error('No data received');
         }
     } catch (e) {
         console.error("祝日データの取得に失敗しました。内蔵データを適用します:", e);
         statusBadge.innerText = "● 外部祝日取得エラー（内蔵バックアップで動作中）";
         statusBadge.className = "status-badge status-fallback";
     }
-    // 祝日データが確定した段階で初期計算を実行
+    // 祝日データセット完了後に全計算を実行
     calculateAll();
 }
 
@@ -441,7 +450,7 @@ function toggleMaster() {
     m.style.display = (m.style.display === 'block') ? 'none' : 'block';
 }
 
-// ページ読み込み時に自動で外部から祝日データをフェッチする
+// 起動時に祝日APIを実行
 fetchJapaneseHolidays();
 </script>
 </body>
