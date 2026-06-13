@@ -5,87 +5,458 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>つなぎ売りコスト一括比較シミュレーター</title>
     <style>
-        :root { --primary-color: #1F497D; --bg-color: #f5f7fa; --card-bg: #fff; --input-bg: #FFF2CC; --border-color: #D9D9D9; }
-        body { font-family: "BIZ UDPGothic", "Meiryo", sans-serif; background-color: var(--bg-color); color: #333; margin: 0; padding: 20px; }
-        .container { max-width: 680px; margin: 0 auto; background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
-        h1 { font-size: 20px; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 8px; margin-bottom: 15px; }
-        .status-container { margin-bottom: 15px; }
-        .status-badge { display: inline-block; font-size: 10px; padding: 4px 8px; border-radius: 4px; font-weight: bold; background: #eef2f7; color: #555; }
-        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 15px; }
-        .input-cell { background-color: var(--input-bg); border: 1px solid var(--border-color); border-radius: 4px; padding: 8px 10px; }
-        .calc-cell { background-color: #F2F2F2; border: 1px solid var(--border-color); border-radius: 4px; padding: 8px 10px; font-weight: bold; }
-        label { display: block; font-size: 11px; color: #595959; margin-bottom: 4px; }
-        input, select { width: 100%; border: none; background: transparent; font-size: 14px; outline: none; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th { background-color: var(--primary-color); color: white; padding: 8px; }
-        td { border: 1px solid var(--border-color); padding: 8px; text-align: right; }
+        :root {
+            --primary-color: #1F497D;
+            --bg-color: #f5f7fa;
+            --card-bg: #fff;
+            --input-bg: #FFF2CC;
+            --calc-bg: #F2F2F2;
+            --border-color: #D9D9D9;
+            --text-main: #333;
+            --text-muted: #595959;
+            --success-bg: #E2EFDA;
+            --success-text: #006100;
+        }
+
+        body {
+            font-family: "BIZ UDPGothic", "Meiryo", "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+        }
+        h1 {
+            font-size: 20px;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 8px;
+            margin-top: 0;
+            margin-bottom: 5px;
+        }
+        .desc {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 15px;
+        }
+        .status-container {
+            margin-bottom: 15px;
+        }
+        .status-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            background-color: #C6EFCE;
+            color: #006100;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            margin: 20px 0 8px 0;
+            color: var(--primary-color);
+        }
+        .input-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        .input-cell {
+            background-color: var(--input-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px 10px;
+        }
+        .calc-cell {
+            background-color: var(--calc-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 8px 10px;
+            font-weight: bold;
+        }
+        label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+        input, select {
+            width: 100%;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+            outline: none;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 8px;
+            font-weight: bold;
+            text-align: center;
+        }
+        td {
+            border: 1px solid var(--border-color);
+            padding: 9px 8px;
+            text-align: right;
+        }
+        td.left { text-align: left; }
+        td.center { text-align: center; }
+        
+        #resultTable tr:nth-child(even) {
+            background-color: #F8FAFC;
+        }
+        #resultTable tr.cheapest {
+            background-color: var(--success-bg) !important;
+            font-weight: bold;
+            color: var(--success-text);
+        }
+        
+        .table-note {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            line-height: 1.5;
+            padding-left: 2px;
+        }
+
+        .master-toggle {
+            display: block;
+            margin: 30px 0 10px 0;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--primary-color);
+            cursor: pointer;
+            text-align: center;
+            background: #eef2f7;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #d1d9e6;
+            transition: background 0.2s;
+        }
+        .master-toggle:hover {
+            background: #e2e8f0;
+        }
+        #master-section {
+            display: none;
+            margin-top: 15px;
+        }
+        .master-table input {
+            border: 1px solid var(--border-color);
+            background-color: #fff;
+            padding: 4px;
+            border-radius: 3px;
+            text-align: right;
+            font-size: 12px;
+            width: 55px;
+        }
+        .master-table input:focus {
+            background-color: var(--input-bg);
+            border-color: var(--primary-color);
+        }
+        .master-table td {
+            padding: 6px 4px;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>つなぎ売りコスト一括比較シミュレーター</h1>
+    <div class="desc">
+        ※黄色の項目を自由に変更してください。4桁の証券コードを入力すると内蔵データから株価が瞬時に自動セットされます。
+    </div>
+    
     <div class="status-container">
-        <div id="statusMsg" class="status-badge">● 外部データ同期中...</div>
+        <div id="stockStatus" class="status-badge">● 稼働ステータス: 完全オフライン高速モード</div>
     </div>
 
+    <div class="section-title">【1】 銘柄・資金条件</div>
     <div class="input-group">
         <div class="input-cell">
-            <label>対象証券コード(4桁)</label>
-            <input type="text" id="stockCode" value="9984" oninput="fetchStockData()">
+            <label>対象銘柄名 / 証券コード(4桁)</label>
+            <input type="text" id="stockName" value="3197">
         </div>
-        <div class="input-cell"><label>株価</label><input type="number" id="stockPrice" value="0" oninput="calculateAll()"></div>
+        <div class="input-cell"><label>信用区分 (全体方針)</label>
+            <select id="creditType" onchange="calculateAll()">
+                <option value="一般信用" selected>一般信用（各社一般 / 楽天SBIは長期・短期自動判別）</option>
+                <option value="制度信用">制度信用（全社一斉に制度金利を適用）</option>
+            </select>
+        </div>
+        <div class="input-cell"><label>株価 (1株単価)</label><input type="number" id="stockPrice" value="2350" oninput="calculateAll()"></div>
+        <div class="input-cell"><label>株数 (注文数量)</label><input type="number" id="stockVolume" value="100" oninput="calculateAll()"></div>
+    </div>
+    <div class="calc-cell" style="margin-bottom: 15px;"><label>必要資金 (現物片道ベース・自動計算)</label><span id="requiredFunds">0</span> 円</div>
+
+    <div class="section-title">【2】 スケジュール条件（祝日・受渡日自動考慮）</div>
+    <div class="input-group">
+        <div class="input-cell"><label>購入日 (約定ベース)</label><input type="date" id="buyDate" value="2026-06-24" onchange="calculateAll()"></div>
+        <div class="input-cell"><label>売却日 (現渡ベース)</label><input type="date" id="sellDate" value="2026-06-25" onchange="calculateAll()"></div>
+        <div class="calc-cell"><label>購入受渡日</label><span id="buySettlement">-</span></div>
+        <div class="calc-cell"><label>売却受渡日</label><span id="sellSettlement">-</span></div>
+    </div>
+    <div class="calc-cell" style="margin-bottom: 20px;"><label>貸株日数 (両端入れ算出)</label><span id="loanDays">0</span> 日</div>
+
+    <div class="section-title">【3】 証券会社別コスト比較結果</div>
+    <table id="resultTable">
+        <thead>
+            <tr>
+                <th>証券会社</th>
+                <th>手数料(往復)</th>
+                <th>金利/貸株料</th>
+                <th>合計コスト</th>
+                <th>判定</th>
+            </tr>
+        </thead>
+        <tbody>
+            </tbody>
+    </table>
+    <div class="table-note">
+        ※SMBC日興証券は現物買いではなく、より低コストな<strong>「信用買い→当日現引（買い金利1日分）」</strong>の一般的な優待クロスルートで計算しています。
     </div>
 
-    <div class="section-title">比較結果</div>
-    <table id="resultTable">
-        <thead><tr><th>証券会社</th><th>手数料</th><th>金利</th><th>合計</th></tr></thead>
-        <tbody></tbody>
-    </table>
+    <div class="master-toggle" onclick="toggleMaster()">⚙️ 証券会社マスタ（金利・基本手数料）をカスタマイズする</div>
+    
+    <div id="master-section">
+        <div class="desc" style="color: #c00000; font-weight: bold;">
+            ※数値を書き換えると上の比較テーブルにリアルタイム反映されます。
+        </div>
+        <table class="master-table">
+            <thead>
+                <tr>
+                    <th>証券会社</th>
+                    <th>一般売(%)<br><small>長期 / 短期</small></th>
+                    <th>制度売(%)</th>
+                    <th>手数料(円)</th>
+                    <th>買金利(%)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr data-id="rakuten">
+                    <td class="left">楽天証券</td>
+                    <td>
+                        長:<input type="number" value="1.10" step="0.01" style="width:45px;" oninput="calculateAll()">%<br>
+                        短:<input type="number" value="3.90" step="0.01" style="width:45px; margin-top:3px;" oninput="calculateAll()">%
+                    </td>
+                    <td><input type="number" value="1.10" step="0.01" oninput="calculateAll()">%</td>
+                    <td><input type="number" value="0" oninput="calculateAll()">円</td>
+                    <td>-</td>
+                </tr>
+                <tr data-id="sbi">
+                    <td class="left">SBI証券</td>
+                    <td>
+                        長:<input type="number" value="2.00" step="0.01" style="width:45px;" oninput="calculateAll()">%<br>
+                        短:<input type="number" value="3.90" step="0.01" style="width:45px; margin-top:3px;" oninput="calculateAll()">%
+                    </td>
+                    <td><input type="number" value="1.10" step="0.01" oninput="calculateAll()">%</td>
+                    <td><input type="number" value="0" oninput="calculateAll()">円</td>
+                    <td>-</td>
+                </tr>
+                <tr data-id="kabucom"><td class="left">auカブコム</td><td><input type="number" value="1.10" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.10" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td>-</td></tr>
+                <tr data-id="gmo"><td class="left">GMOクリック</td><td><input type="number" value="3.85" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td>-</td></tr>
+                <tr data-id="matsui"><td class="left">松井証券</td><td><input type="number" value="2.00" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="text" id="matsuiFeeDisplay" value="自動計算" disabled style="width:55px; background:#f2f2f2; text-align:center;">円</td><td>-</td></tr>
+                <tr data-id="monex"><td class="left">マネックス証券</td><td><input type="number" value="3.90" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td>-</td></tr>
+                <tr data-id="okasan"><td class="left">岡三オンライン</td><td><input type="number" value="3.90" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td>-</td></tr>
+                <tr data-id="nikko"><td class="left">SMBC日興証券</td><td><input type="number" value="1.90" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="0" oninput="calculateAll()">円</td><td><input type="number" value="3.27" step="0.01" oninput="calculateAll()">%</td></tr>
+                <tr data-id="nomura"><td class="left">野村證券</td><td><input type="number" value="2.00" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="524" oninput="calculateAll()">円</td><td>-</td></tr>
+                <tr data-id="daiwa"><td class="left">大和証券</td><td><input type="number" value="2.50" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="1.15" step="0.01" oninput="calculateAll()">%</td><td><input type="number" value="550" oninput="calculateAll()">円</td><td>-</td></tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
 <script>
-let holidays = new Set();
+// 日本の祝日データ（2026年〜2027年完全網羅）
+const holidays = new Set([
+    "2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20", "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06", "2026-07-20", "2026-08-11", "2026-09-21", "2026-09-22", "2026-09-23", "2026-10-12", "2026-11-03", "2026-11-23",
+    "2027-01-01", "2027-01-11", "2027-02-11", "2027-02-23", "2027-03-21", "2027-03-22", "2027-04-29", "2027-05-03", "2027-05-04", "2027-05-05", "2027-05-06", "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"
+]);
 
-// 1. 祝日データを外部(date.nager.at)から自動取得
-async function initHolidays() {
-    try {
-        const year = new Date().getFullYear();
-        const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${year}/JP`);
-        const data = await res.json();
-        data.forEach(h => holidays.add(h.date));
-        document.getElementById('statusMsg').innerText = "● 祝日・株価データ連携完了";
-    } catch(e) {
-        document.getElementById('statusMsg').innerText = "● 祝日取得エラー (内蔵データで代用)";
-    }
-}
+// 銘柄株価データベース（公開用に主要・人気優待銘柄を大量格納）
+const localStockMaster = {
+    // 外食・食品系
+    "2502": { name: "アサヒGHD", price: 5680 }, "2503": { name: "キリンHD", price: 2180 }, "2579": { name: "コカ・コーラBJH", price: 2050 }, "2593": { name: "伊藤園", price: 3800 }, "2702": { name: "日本マクドナルドHD", price: 6850 }, "2752": { name: "フジオフードG", price: 1420 }, "2798": { name: "ワイズテーブル", price: 1980 }, "3087": { name: "ドトール・日レス", price: 2200 }, "3097": { name: "物語コーポレーション", price: 3600 }, "3196": { name: "ホットランド", price: 2300 }, "3197": { name: "すかいらーくHD", price: 2350 }, "3222": { name: "U.S.M.H", price: 820 }, "3387": { name: "クリエイト・レストランツ", price: 1150 }, "3397": { name: "トリドールHD", price: 3800 }, "3563": { name: "FOOD&LIFE COMPANIES", price: 3100 }, "7412": { name: "アトム", price: 720 }, "7421": { name: "カッパ・クリエイト", price: 1650 }, "7550": { name: "ゼンショーHD", price: 6120 }, "7616": { name: "コロワイド", price: 1980 }, "8179": { name: "ロイヤルHD", price: 2600 }, "8200": { name: "リンガーハット", price: 2350 }, "9861": { name: "吉野家HD", price: 3150 }, "9936": { name: "王将フードサービス", price: 8200 },
+    // 小売・流通・流通系
+    "2651": { name: "ローソン", price: 10200 }, "2730": { name: "エディオン", price: 1650 }, "3048": { name: "ビックカメラ", price: 1620 }, "3086": { name: "J.フロントリテイリング", price: 1600 }, "3088": { name: "マツキヨココカラ", price: 2250 }, "3099": { name: "三越伊勢丹HD", price: 3120 }, "3141": { name: "ウエルシアHD", price: 2100 }, "3382": { name: "セブン＆アイHD", price: 5450 }, "3543": { name: "コメダHD", price: 2700 }, "7516": { name: "コーナン商事", price: 3800 }, "8267": { name: "イオン", price: 3560 }, "8279": { name: "ヤオコー", price: 8700 }, "9831": { name: "ヤマダHD", price: 450 }, "9948": { name: "アークス", price: 2800 }, "9983": { name: "ファーストリテイリング", price: 41000 }, "9989": { name: "サンドラッグ", price: 4200 },
+    // エンタメ・旅行・その他人気
+    "4661": { name: "オリエンタルランド", price: 4520 }, "4755": { name: "楽天グループ", price: 850 }, "6902": { name: "デンソー", price: 2400 }, "7203": { name: "トヨタ自動車", price: 3250 }, "7974": { name: "任天堂", price: 8140 }, "9201": { name: "日本航空", price: 2750 }, "9202": { name: "ANA HD", price: 3220 }, "9432": { name: "NTT", price: 155 }, "9433": { name: "KDDI", price: 4650 }, "9434": { name: "ソフトバンク", price: 195 }, "9602": { name: "東宝", price: 5200 }, "9984": { name: "ソフトバンクグループ", price: 9230 },
+    // 追加用の主要クロス対象
+    "1332": { name: "ニッスイ", price: 940 }, "2002": { name: "日清製粉G本社", price: 2310 }, "2914": { name: "日本たばこ産業(JT)", price: 4420 }, "3028": { name: "アルペン", price: 2025 }, "4502": { name: "武田薬品工業", price: 4150 }, "4901": { name: "富士フイルムHD", price: 3450 }, "6501": { name: "日立製作所", price: 17200 }, "6758": { name: "ソニーグループ", price: 12850 }, "8306": { name: "三菱UFJフィナンシャルG", price: 1580 }, "8316": { name: "三井住友フィナンシャルG", price: 8850 }, "8411": { name: "みずほフィナンシャルG", price: 3150 }, "9997": { name: "ベルーナ", price: 710 }
+};
 
-// 2. 株価・銘柄名を外部(Yahoo!ファイナンス)から自動取得
-// JSONP方式でCORS制限を回避し、外部環境でも動作させます
-function fetchStockData() {
-    const code = document.getElementById('stockCode').value;
-    if (code.length !== 4) return;
+// 起動時の初期化イベント
+document.addEventListener("DOMContentLoaded", () => {
+    const stockInput = document.getElementById('stockName');
+    stockInput.addEventListener('input', handleStockNameInput);
     
-    const script = document.createElement('script');
-    window.stockCallback = (data) => {
-        if(data.ResultSet.Result.length > 0) {
-            const stock = data.ResultSet.Result[0];
-            document.getElementById('stockPrice').value = Math.round(stock.price);
-            document.getElementById('statusMsg').innerText = `● ${stock.name} の株価取得完了`;
-            calculateAll();
+    // 初回起動シミュレーションを実行
+    handleStockNameInput();
+});
+
+// 入力イベントハンドラ
+function handleStockNameInput() {
+    const inputVal = document.getElementById('stockName').value.trim();
+    const stockStatus = document.getElementById('stockStatus');
+    
+    if (/^\d{4}$/.test(inputVal)) {
+        if (localStockMaster[inputVal]) {
+            const stockInfo = localStockMaster[inputVal];
+            document.getElementById('stockPrice').value = stockInfo.price;
+            stockStatus.innerText = `● 【自動反映】 ${inputVal} (${stockInfo.name}) 株価: ${stockInfo.price}円`;
+            stockStatus.style.backgroundColor = "#C6EFCE";
+            stockStatus.style.color = "#006100";
+        } else {
+            stockStatus.innerText = `● コード ${inputVal} (内蔵データ未登録：株価を手入力してください)`;
+            stockStatus.style.backgroundColor = "#FFC7CE";
+            stockStatus.style.color = "#9C0006";
         }
-    };
-    script.src = `https://search.finance.yahoo.co.jp/v1/stock/suggest?query=${code}&callback=stockCallback`;
-    document.body.appendChild(script);
+    } else {
+        stockStatus.innerText = `● 自由入力モード中`;
+        stockStatus.style.backgroundColor = "#E2E8F0";
+        stockStatus.style.color = "#4A5568";
+    }
+    calculateAll();
 }
 
+// 営業日ベースの受渡日計算（T+2）
+function getSettlementDate(dateString) {
+    let date = new Date(dateString);
+    if (isNaN(date.getTime())) return null;
+    let businessDaysAdded = 0;
+    while (businessDaysAdded < 2) {
+        date.setDate(date.getDate() + 1);
+        let dayOfWeek = date.getDay();
+        let formattedDate = date.toISOString().split('T')[0];
+        if (dayOfWeek !== 0 && dayOfWeek !== 6 && !holidays.has(formattedDate)) {
+            businessDaysAdded++;
+        }
+    }
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')} (${dayNames[date.getDay()]})`;
+}
+
+// 日数計算
+function getDaysDiff(d1Str, d2Str) {
+    let bSettlement = getSettlementDate(d1Str);
+    let sSettlement = getSettlementDate(d2Str);
+    if (!bSettlement || !sSettlement) return 0;
+    let d1 = new Date(bSettlement.substring(0, 10).replace(/\//g, '-'));
+    let d2 = new Date(sSettlement.substring(0, 10).replace(/\//g, '-'));
+    let diffTime = d2 - d1;
+    let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays + 1 : 0;
+}
+
+// 松井証券の一日定額手数料の動的シミュレーション
+function calculateMatsuiFee(oneWayFunds) {
+    let totalVolume = oneWayFunds * 2; // 現物買い＋信用売りの往復想定
+    if (totalVolume <= 500000) return 0;
+    if (totalVolume <= 1000000) return 1100;
+    if (totalVolume <= 100000000) {
+        return 1100 + (Math.ceil((totalVolume - 1000000) / 1000000) * 1100);
+    }
+    return 110000;
+}
+
+// メイン計算ロジック
 function calculateAll() {
-    // ここに計算ロジック（前回の内容）を記述
-    console.log("計算実行");
+    let price = parseFloat(document.getElementById('stockPrice').value) || 0;
+    let volume = parseFloat(document.getElementById('stockVolume').value) || 0;
+    let creditType = document.getElementById('creditType').value;
+    let buyDate = document.getElementById('buyDate').value;
+    let sellDate = document.getElementById('sellDate').value;
+
+    let funds = price * volume;
+    document.getElementById('requiredFunds').innerText = funds.toLocaleString();
+
+    let bSetDateText = getSettlementDate(buyDate);
+    let sSetDateText = getSettlementDate(sellDate);
+    document.getElementById('buySettlement').innerText = bSetDateText || "-";
+    document.getElementById('sellSettlement').innerText = sSetDateText || "-";
+
+    let loanDays = getDaysDiff(buyDate, sellDate);
+    document.getElementById('loanDays').innerText = loanDays;
+
+    let currentMatsuiFee = calculateMatsuiFee(funds);
+    document.getElementById('matsuiFeeDisplay').value = currentMatsuiFee;
+
+    let results = [];
+    let rows = document.querySelectorAll('#master-section .master-table tbody tr');
+    
+    rows.forEach(row => {
+        let name = row.cells[0].innerText;
+        let id = row.getAttribute('data-id');
+        let seido = parseFloat(row.cells[2].querySelector('input').value) || 0;
+        let fee = (id === 'matsui') ? currentMatsuiFee : (parseFloat(row.cells[3].querySelector('input').value) || 0);
+        
+        if ((id === 'rakuten' || id === 'sbi') && creditType === "一般信用") {
+            let inputs = row.cells[1].querySelectorAll('input');
+            let rateChoki = parseFloat(inputs[0].value) || 0;
+            let rateTanki = parseFloat(inputs[1].value) || 0;
+
+            let loanCostChoki = Math.floor(funds * (rateChoki / 100) * loanDays / 365);
+            results.push({ name: `${name} (長期)`, fee: fee, loanCost: loanCostChoki, total: fee + loanCostChoki });
+
+            let loanCostTanki = Math.floor(funds * (rateTanki / 100) * loanDays / 365);
+            results.push({ name: `${name} (短期)`, fee: fee, loanCost: loanCostTanki, total: fee + loanCostTanki });
+        } else {
+            let ippan = parseFloat(row.cells[1].querySelector('input').value) || 0;
+            let rate = ((creditType === "制度信用") ? seido : ippan) / 100;
+            let loanCost = Math.floor(funds * rate * loanDays / 365);
+            
+            if (id === 'nikko') {
+                let buyKinri = parseFloat(row.cells[4].querySelector('input').value) || 0;
+                loanCost += Math.floor(funds * (buyKinri / 100) * 1 / 365);
+            }
+            
+            let displayName = name;
+            if (creditType === "制度信用" && (id === 'rakuten' || id === 'sbi')) displayName = `${name} (制度)`;
+            results.push({ name: displayName, fee: fee, loanCost: loanCost, total: fee + loanCost });
+        }
+    });
+
+    let minTotal = Math.min(...results.map(r => r.total));
+    let tbody = document.querySelector('#resultTable tbody');
+    tbody.innerHTML = "";
+
+    results.forEach(res => {
+        let tr = document.createElement('tr');
+        if (res.total === minTotal && res.total > 0) tr.className = 'cheapest';
+        tr.innerHTML = `
+            <td class="left">${res.name}</td>
+            <td>${res.fee.toLocaleString()}円</td>
+            <td>${res.loanCost.toLocaleString()}円</td>
+            <td>${res.total.toLocaleString()}円</td>
+            <td class="center">${(res.total === minTotal && res.total > 0) ? "★最安" : ""}</td>
+        `;
+        tbody.appendChild(tr);
+    });
 }
 
-initHolidays();
-fetchStockData();
+// マスタ開閉制御
+function toggleMaster() {
+    let m = document.getElementById('master-section');
+    m.style.display = (m.style.display === 'block') ? 'none' : 'block';
+}
 </script>
 </body>
 </html>
