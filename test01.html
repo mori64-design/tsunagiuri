@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>つなぎ売りコスト一括比較シミュレーター</title>
+    <!-- ファビコンエラー対策 -->
     <link rel="icon" href="data:,">
     <style>
         body {
@@ -237,7 +239,7 @@
         <tbody></tbody>
     </table>
     <div class="table-note">
-        ※SMBC日興証券は、現物買いではなく<strong>「信用買い→当日現引（金利1日分）」</strong>のルートでコストを計算しています。
+        ※松井証券およびSMBC日興証券は、現物買いではなく<strong>「信用買い→当日現引（金利1日分）」</strong>のルートを前提としてコストを計算しています。（松井証券の1日信用買い手数料・金利は0円のため、手数料は信用売りの約定代金のみで判定されます）
     </div>
 
     <div class="master-toggle" onclick="toggleMaster()">⚙️ 証券会社マスタ（金利・手数料）を設定・編集する</div>
@@ -245,7 +247,7 @@
     <div id="master-section">
         <div class="desc" style="color: #c00000; font-weight: bold;">
             ※各数値を変更すると、上の比較表にリアルタイムに反映されます。楽天とSBIは長期・短期を個別に設定可能です。
-            <br>※松井証券の手数料は上の株価・株数から「1日の往復の合計約定代金」を算出し、自動で変動計算されます。
+            <br>※松井証券の手数料は上の株価・株数から「信用売り（片道）の合計約定代金」を算出し、自動で変動計算されます。
         </div>
         <table class="master-table">
             <thead>
@@ -303,7 +305,6 @@ let holidays = new Set([
     "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"
 ]);
 
-// 日本の祝日オープンAPI（JSON形式）を使用
 async function fetchJapaneseHolidays() {
     const statusBadge = document.getElementById('holidayStatus');
     try {
@@ -318,7 +319,7 @@ async function fetchJapaneseHolidays() {
             
             const data = await response.json();
             if (data && data.length > 0) {
-                if (fetchedCount === 0) holidays.clear(); // 取得できたらバックアップをクリア
+                if (fetchedCount === 0) holidays.clear();
                 data.forEach(holiday => {
                     holidays.add(holiday.date); 
                 });
@@ -367,14 +368,15 @@ function getDaysDiff(d1Str, d2Str) {
     return diffDays >= 0 ? diffDays + 1 : 0;
 }
 
+// 【変更箇所】 信用売りの片道金額のみを判定基準に修正
 function calculateMatsuiFee(oneWayFunds) {
-    let totalVolume = oneWayFunds * 2; 
-    if (totalVolume <= 500000) {
+    let targetVolume = oneWayFunds; // 往復(oneWayFunds * 2)ではなく片道のみで判定
+    if (targetVolume <= 500000) {
         return 0;
-    } else if (totalVolume <= 1000000) {
+    } else if (targetVolume <= 1000000) {
         return 1100;
-    } else if (totalVolume <= 100000000) {
-        let overAmount = totalVolume - 1000000;
+    } else if (targetVolume <= 100000000) {
+        let overAmount = targetVolume - 1000000;
         let additionalSteps = Math.ceil(overAmount / 1000000);
         return 1100 + (additionalSteps * 1100);
     } else {
@@ -488,7 +490,6 @@ function toggleMaster() {
     m.style.display = (m.style.display === 'block') ? 'none' : 'block';
 }
 
-// 起動時に祝日APIを実行
 fetchJapaneseHolidays();
 </script>
 </body>
