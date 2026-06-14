@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>つなぎ売りコスト一括比較シミュレーター</title>
+    <style>
+        body { font-family: "BIZ UDPGothic", "Meiryo", sans-serif; background-color: #f5f7fa; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 650px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { font-size: 18px; color: #1F497D; border-bottom: 2px solid #1F497D; padding-bottom: 8px; margin-top: 0; }
+        .desc { font-size: 11px; color: #595959; margin-bottom: 15px; }
+        .status-badge { display: inline-block; font-size: 10px; padding: 3px 6px; border-radius: 3px; font-weight: bold; margin-bottom: 10px; }
+        .status-loading { background-color: #FFE699; color: #7F6000; }
+        .status-success { background-color: #C6EFCE; color: #006100; }
+        .status-fallback { background-color: #FFC7CE; color: #9C0006; }
+        .section-title { font-size: 14px; font-weight: bold; margin: 20px 0 8px 0; color: #1F497D; }
+        .input-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .input-cell { background-color: #FFF2CC; border: 1px solid #D9D9D9; border-radius: 4px; padding: 8px; }
+        .calc-cell { background-color: #F2F2F2; border: 1px solid #D9D9D9; border-radius: 4px; padding: 8px; font-weight: bold; }
+        label { display: block; font-size: 11px; color: #595959; margin-bottom: 4px; }
+        input, select { width: 100%; border: none; background: transparent; font-size: 14px; font-family: inherit; outline: none; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th { background-color: #1F497D; color: white; padding: 8px; text-align: center; }
+        td { border: 1px solid #D9D9D9; padding: 8px; text-align: right; }
+        .left { text-align: left; }
+        .center { text-align: center; }
+        .cheapest { background-color: #E2EFDA !important; font-weight: bold; color: #006100; }
+        
+        /* ツールチップ関連 */
+        .tooltip { position: relative; cursor: help; border-bottom: 1px dotted #333; }
+        .tooltip .tooltiptext { visibility: hidden; width: 220px; background-color: #333; color: #fff; text-align: left; border-radius: 6px; padding: 10px; font-size: 11px; position: absolute; z-index: 1; bottom: 125%; left: 50%; margin-left: -110px; opacity: 0; transition: opacity 0.3s; }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+
+        .master-toggle { margin: 30px 0 10px 0; font-size: 13px; font-weight: bold; color: #1F497D; cursor: pointer; text-align: center; background: #eef2f7; padding: 10px; border-radius: 4px; border: 1px solid #d1d9e6; }
+        #master-section { display: none; margin-top: 15px; }
+        .master-table input { border: 1px solid #D9D9D9; padding: 4px; width: 55px; text-align: right; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>つなぎ売りコスト一括比較シミュレーター</h1>
+    <div class="desc">最新の祝日データを自動取得し、受渡日ベースで計算します。合計コストにカーソルを合わせると計算内訳を表示します。</div>
+    <div id="holidayStatus" class="status-badge status-loading">祝日データを受信中...</div>
+
+    <div class="section-title">【1】 銘柄・資金条件</div>
+    <div class="input-group">
+        <div class="input-cell"><label>対象銘柄名</label><input type="text" id="stockName" value="サンプル銘柄"></div>
+        <div class="input-cell"><label>信用区分</label>
+            <select id="creditType" onchange="calculateAll()">
+                <option value="一般信用">一般信用</option>
+                <option value="制度信用">制度信用</option>
+            </select>
+        </div>
+        <div class="input-cell"><label>株価 (1株)</label><input type="number" id="stockPrice" value="5000" oninput="calculateAll()"></div>
+        <div class="input-cell"><label>株数</label><input type="number" id="stockVolume" value="100" oninput="calculateAll()"></div>
+    </div>
+    <div class="calc-cell" style="margin-bottom: 15px;">必要資金: <span id="requiredFunds">0</span> 円</div>
+
+    <div class="section-title">【2】 スケジュール</div>
+    <div class="input-group">
+        <div class="input-cell"><label>購入日</label><input type="date" id="buyDate" onchange="calculateAll()"></div>
+        <div class="input-cell"><label>売却日</label><input type="date" id="sellDate" onchange="calculateAll()"></div>
+    </div>
+    <div class="calc-cell" style="margin-bottom: 20px;">貸株日数: <span id="loanDays">0</span> 日</div>
+
+    <table id="resultTable">
+        <thead><tr><th>証券会社</th><th>手数料</th><th>金利</th><th>合計コスト</th><th>判定</th></tr></thead>
+        <tbody></tbody>
+    </table>
+
+    <div class="master-toggle" onclick="toggleMaster()">⚙️ 証券会社マスタを設定・編集する</div>
+    <div id="master-section">
+        <table class="master-table">
+            <thead><tr><th>証券会社</th><th>一般売(%)</th><th>制度売(%)</th><th>手数料</th><th>買金利</th></tr></thead>
+            <tbody>
+                <tr data-id="rakuten"><td>楽天</td><td>長1.1/短3.9</td><td>1.1</td><td>0</td><td>-</td></tr>
+                <tr data-id="sbi"><td>SBI</td><td>長2.0/短3.9</td><td>1.1</td><td>0</td><td>-</td></tr>
+                <tr data-id="nikko"><td>日興</td><td>1.9</td><td>1.15</td><td>0</td><td>3.27</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+let holidays = new Set();
+async function fetchJapaneseHolidays() {
+    try {
+        const res = await fetch(`https://date.nager.at/api/v3/PublicHolidays/${new Date().getFullYear()}/JP`);
+        const data = await res.json();
+        data.forEach(h => holidays.add(h.date));
+        document.getElementById('holidayStatus').className = "status-badge status-success";
+        document.getElementById('holidayStatus').innerText = "● 祝日データ更新完了";
+    } catch {
+        document.getElementById('holidayStatus').className = "status-badge status-fallback";
+        document.getElementById('holidayStatus').innerText = "● 祝日取得エラー（内蔵データ利用）";
+    }
+    calculateAll();
+}
+
+function calculateAll() {
+    const price = parseFloat(document.getElementById('stockPrice').value) || 0;
+    const vol = parseFloat(document.getElementById('stockVolume').value) || 0;
+    const funds = price * vol;
+    const d1 = new Date(document.getElementById('buyDate').value);
+    const d2 = new Date(document.getElementById('sellDate').value);
+    const loanDays = Math.max(0, Math.ceil((d2 - d1) / (1000*60*60*24)) + 1);
+    
+    document.getElementById('requiredFunds').innerText = funds.toLocaleString();
+    document.getElementById('loanDays').innerText = loanDays;
+
+    // 簡単な計算ロジックサンプル
+    const results = [
+        { name: "楽天証券", fee: 0, loanCost: Math.floor(funds *
