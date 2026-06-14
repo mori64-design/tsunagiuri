@@ -20,7 +20,7 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            position: relative; /* バージョン配置用 */
+            position: relative;
         }
         .header-area {
             border-bottom: 2px solid #1F497D;
@@ -142,7 +142,6 @@
             padding-left: 5px;
         }
 
-        /* 拡張トグルセクションの共通スタイル */
         .toggle-btn {
             display: block;
             margin: 15px 0 10px 0;
@@ -169,7 +168,6 @@
             border-radius: 4px;
         }
 
-        /* スケジュール表用の追加スタイル */
         .schedule-table th {
             background-color: #595959;
         }
@@ -184,7 +182,6 @@
             background-color: #FFF2CC;
         }
         
-        /* 連動用ボタンのスタイル */
         .apply-btn {
             background-color: #1F497D;
             color: white;
@@ -217,7 +214,6 @@
             padding: 5px;
         }
 
-        /* ツールチップのスタイル */
         .tooltip {
             position: relative;
             cursor: help;
@@ -253,7 +249,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.40</div>
+        <div class="version-tag">Ver 1.42</div>
     </div>
     
     <div class="desc">
@@ -278,7 +274,7 @@
             <thead>
                 <tr>
                     <th>権利確定月</th>
-                    <th>権利付最終日<br><small>(購入日)</small></th>
+                    <th>権利付最終日</th>
                     <th>権利落ち日<br><small>(現渡日)</small></th>
                     <th>権利確定日<br><small>(受渡日ベース)</small></th>
                     <th>操作</th>
@@ -308,8 +304,8 @@
 
     <div class="section-title">【2】 スケジュール条件（祝日自動考慮）</div>
     <div class="input-group">
-        <div class="input-cell"><label>購入日 (約定ベース)</label><input type="date" id="buyDate" value="2026-06-24" onchange="calculateAll()"></div>
-        <div class="input-cell"><label>売却日 (現渡ベース)</label><input type="date" id="sellDate" value="2026-06-25" onchange="changeSellDate()"></div>
+        <div class="input-cell"><label>購入日 (約定ベース / 最短開場日自動)</label><input type="date" id="buyDate" onchange="calculateAll()"></div>
+        <div class="input-cell"><label>売却日 (現渡ベース)</label><input type="date" id="sellDate" onchange="changeSellDate()"></div>
         <div class="calc-cell"><label>購入受渡日</label><span id="buySettlement">-</span></div>
         <div class="calc-cell"><label>売却受渡日</label><span id="sellSettlement">-</span></div>
     </div>
@@ -428,6 +424,9 @@ async function fetchJapaneseHolidays() {
         statusBadge.innerText = "● 外部祝日取得エラー（内蔵バックアップで動作中）";
         statusBadge.className = "status-badge status-fallback";
     }
+    
+    // 初回起動時に入力欄へ「本日の次の営業日（開場日）」を初期プリセットする
+    initDefaultDates();
     generateAutoScheduleTable();
     calculateAll();
 }
@@ -459,7 +458,26 @@ function getPreviousBusinessDay(baseDate, offsetDays) {
     return new Date(date.getTime());
 }
 
-// 【1&3の機能追加】権利区分に応じたスケジュール自動生成ロジック
+// 基準日から見て「次（当日含む）の最短市場開場日」を計算する関数
+function getNextBusinessDay(baseDate) {
+    let date = new Date(baseDate.getTime());
+    // もし今日が休場日（土日祝・年末年始）なら、開場日まで1日ずつ進める
+    while (!isBusinessDay(date)) {
+        date.setDate(date.getDate() + 1);
+    }
+    return date;
+}
+
+// 起動時、購入日に「アクセス時点の次（最短）の開場日」をセットする
+function initDefaultDates() {
+    let today = new Date();
+    let nextOpenDay = getNextBusinessDay(today);
+    document.getElementById('buyDate').value = nextOpenDay.toISOString().split('T')[0];
+    
+    // 売却日（現渡日）はとりあえず同日を仮セット
+    document.getElementById('sellDate').value = nextOpenDay.toISOString().split('T')[0];
+}
+
 function generateAutoScheduleTable() {
     const tbody = document.querySelector('#autoScheduleTable tbody');
     tbody.innerHTML = "";
@@ -474,33 +492,26 @@ function generateAutoScheduleTable() {
         let month = currentLoopDate.getMonth() + 1;
         
         let closingDate;
-        
-        // 権利区分に応じた「ベースとなる日」の割り出し
         if (targetType === "月末") {
-            closingDate = new Date(year, month, 0); // 月末日
+            closingDate = new Date(year, month, 0); 
         } else if (targetType === "20日") {
-            closingDate = new Date(year, month - 1, 20); // その月の20日
+            closingDate = new Date(year, month - 1, 20); 
         } else if (targetType === "15日") {
-            closingDate = new Date(year, month - 1, 15); // その月の15日
+            closingDate = new Date(year, month - 1, 15); 
         }
         
-        // ベース日が非営業日の場合は、前営業日に前倒し（権利確定日）
         while (!isBusinessDay(closingDate)) {
             closingDate.setDate(closingDate.getDate() - 1);
         }
         
-        // 権利落ち日(1営業日前)・権利付最終日(2営業日前)の算出
         let ochDate = getPreviousBusinessDay(closingDate, 1);
         let saishyuDate = getPreviousBusinessDay(closingDate, 2);
         
         let gapDays = Math.ceil((ochDate - saishyuDate) / (1000 * 60 * 60 * 24));
         let isHighlight = gapDays > 1; 
         
-        // YYYY-MM-DD型（インプットフォーム同期用値）
-        let rawSaishyuStr = saishyuDate.toISOString().split('T')[0];
         let rawOchiStr = ochDate.toISOString().split('T')[0];
         
-        // 画面表示用フォーマット
         let fSaishyu = `${saishyuDate.getMonth()+1}月${saishyuDate.getDate()}日(${dayNames[saishyuDate.getDay()]})`;
         let fOchi = `${ochDate.getMonth()+1}月${ochDate.getDate()}日(${dayNames[ochDate.getDay()]})`;
         let fClosing = `${closingDate.getMonth()+1}月${closingDate.getDate()}日(${dayNames[closingDate.getDay()]})`;
@@ -515,27 +526,31 @@ function generateAutoScheduleTable() {
             tr.className = 'highlight-row';
         }
         
-        // 【1の対応】ワンクリック連動用のボタンを最後のセルに追加
         tr.innerHTML = `
             <td><strong>${year}年${month}月</strong></td>
             <td>${fSaishyu}</td>
             <td>${fOchi}</td>
             <td>${fClosing}${noteText}</td>
-            <td><button type="button" class="apply-btn" onclick="applyScheduleToInput('${rawSaishyuStr}', '${rawOchiStr}')">適用</button></td>
+            <td><button type="button" class="apply-btn" onclick="applyScheduleToInput('${rawOchiStr}')">適用</button></td>
         `;
         tbody.appendChild(tr);
     }
 }
 
-// 【1の対応】早見表からシミュレーターへのデータ連動関数
-function applyScheduleToInput(buyDateStr, sellDateStr) {
-    document.getElementById('buyDate').value = buyDateStr;
+// 【改良１の仕様変更反映】
+function applyScheduleToInput(sellDateStr) {
+    // 1. 売却日（現渡日）には早見表の「権利落ち日」を確実にプリセット
     document.getElementById('sellDate').value = sellDateStr;
     
-    // 値をセットした後に一括再計算を実行
+    // 2. 購入日（仕込み日）には「ツールを操作している現在時点の次の開場日」を計算してプリセット
+    let today = new Date();
+    let nextOpenDay = getNextBusinessDay(today);
+    document.getElementById('buyDate').value = nextOpenDay.toISOString().split('T')[0];
+    
+    // 一括再計算
     calculateAll();
     
-    // 連動がわかりやすいよう、入力欄へ画面を軽くスクロール
+    // スクロール移動
     document.getElementById('buyDate').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
@@ -683,9 +698,6 @@ function calculateAll() {
 function toggleSection(id) {
     let target = document.getElementById(id);
     target.style.display = (target.style.display === 'block') ? 'none' : 'block';
-}
-function toggleMaster() {
-    toggleSection('master-section');
 }
 
 fetchJapaneseHolidays();
