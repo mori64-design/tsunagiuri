@@ -81,6 +81,25 @@
             border-radius: 4px;
             padding: 8px;
         }
+        
+        /* 【追加】単位付き入力ボックスのためのボックスインナー構造 */
+        .input-with-unit {
+            display: flex;
+            align-items: center;
+        }
+        .input-with-unit input {
+            flex: 1;
+            width: 100%;
+            padding-right: 5px;
+        }
+        .input-unit-label {
+            font-size: 13px;
+            font-weight: bold;
+            color: #595959;
+            padding-left: 5px;
+            user-select: none;
+        }
+
         .calc-cell {
             background-color: #F2F2F2;
             border: 1px solid #D9D9D9;
@@ -249,7 +268,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.43</div>
+        <div class="version-tag">Ver 1.44</div>
     </div>
     
     <div class="desc">
@@ -297,8 +316,22 @@
                 <option value="制度信用">制度信用（全社一斉に制度金利を適用）</option>
             </select>
         </div>
-        <div class="input-cell"><label>株価 (1株単価)</label><input type="number" id="stockPrice" value="5000" oninput="calculateAll()"></div>
-        <div class="input-cell"><label>株数 (注文数量)</label><input type="number" id="stockVolume" value="100" oninput="calculateAll()"></div>
+        
+        <div class="input-cell">
+            <label>株価 (1株単価)</label>
+            <div class="input-with-unit">
+                <input type="number" id="stockPrice" value="5000" oninput="calculateAll()">
+                <span class="input-unit-label">円</span>
+            </div>
+        </div>
+        
+        <div class="input-cell">
+            <label>株数 (注文数量)</label>
+            <div class="input-with-unit">
+                <input type="number" id="stockVolume" value="100" oninput="calculateAll()">
+                <span class="input-unit-label">株</span>
+            </div>
+        </div>
     </div>
     <div class="calc-cell" style="margin-bottom: 15px;"><label>必要資金 (現物片道ベース・自動計算)</label><span id="requiredFunds">0</span> 円</div>
 
@@ -390,7 +423,6 @@ let holidays = new Set([
     "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"
 ]);
 
-// Dateオブジェクトを時差の影響を受けずに「YYYY-MM-DD」の文字列にする安全な関数
 function formatDateToYYYYMMDD(date) {
     let y = date.getFullYear();
     let m = String(date.getMonth() + 1).padStart(2, '0');
@@ -511,7 +543,6 @@ function generateAutoScheduleTable() {
         let gapDays = Math.ceil((ochDate - saishyuDate) / (1000 * 60 * 60 * 24));
         let isHighlight = gapDays > 1; 
         
-        // 時差ズレを起こさない安全なフォーマット関数を使用
         let rawOchiStr = formatDateToYYYYMMDD(ochDate);
         
         let fSaishyu = `${saishyuDate.getMonth()+1}月${saishyuDate.getDate()}日(${dayNames[saishyuDate.getDay()]})`;
@@ -540,7 +571,6 @@ function generateAutoScheduleTable() {
 }
 
 function applyScheduleToInput(sellDateStr) {
-    // ズレのない正確な権利落ち日が売却日にセットされます
     document.getElementById('sellDate').value = sellDateStr;
     
     let today = new Date();
