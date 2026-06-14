@@ -249,7 +249,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.42</div>
+        <div class="version-tag">Ver 1.43</div>
     </div>
     
     <div class="desc">
@@ -380,7 +380,6 @@
 </div>
 
 <script>
-// 通信エラー等に備える内蔵バックアップ（2026年〜2027年）
 let holidays = new Set([
     "2026-01-01", "2026-01-12", "2026-02-11", "2026-02-23", "2026-03-20",
     "2026-04-29", "2026-05-03", "2026-05-04", "2026-05-05", "2026-05-06",
@@ -390,6 +389,14 @@ let holidays = new Set([
     "2027-04-29", "2027-05-03", "2027-05-04", "2027-05-05", "2027-05-06",
     "2027-07-19", "2027-08-11", "2027-09-20", "2027-09-23", "2027-10-11", "2027-11-03", "2027-11-23"
 ]);
+
+// Dateオブジェクトを時差の影響を受けずに「YYYY-MM-DD」の文字列にする安全な関数
+function formatDateToYYYYMMDD(date) {
+    let y = date.getFullYear();
+    let m = String(date.getMonth() + 1).padStart(2, '0');
+    let d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
 
 async function fetchJapaneseHolidays() {
     const statusBadge = document.getElementById('holidayStatus');
@@ -425,7 +432,6 @@ async function fetchJapaneseHolidays() {
         statusBadge.className = "status-badge status-fallback";
     }
     
-    // 初回起動時に入力欄へ「本日の次の営業日（開場日）」を初期プリセットする
     initDefaultDates();
     generateAutoScheduleTable();
     calculateAll();
@@ -435,7 +441,7 @@ function isBusinessDay(date) {
     let dayOfWeek = date.getDay();
     if (dayOfWeek === 0 || dayOfWeek === 6) return false; 
     
-    let formattedDate = date.toISOString().split('T')[0];
+    let formattedDate = formatDateToYYYYMMDD(date);
     if (holidays.has(formattedDate)) return false; 
     
     let month = date.getMonth() + 1;
@@ -458,24 +464,19 @@ function getPreviousBusinessDay(baseDate, offsetDays) {
     return new Date(date.getTime());
 }
 
-// 基準日から見て「次（当日含む）の最短市場開場日」を計算する関数
 function getNextBusinessDay(baseDate) {
     let date = new Date(baseDate.getTime());
-    // もし今日が休場日（土日祝・年末年始）なら、開場日まで1日ずつ進める
     while (!isBusinessDay(date)) {
         date.setDate(date.getDate() + 1);
     }
     return date;
 }
 
-// 起動時、購入日に「アクセス時点の次（最短）の開場日」をセットする
 function initDefaultDates() {
     let today = new Date();
     let nextOpenDay = getNextBusinessDay(today);
-    document.getElementById('buyDate').value = nextOpenDay.toISOString().split('T')[0];
-    
-    // 売却日（現渡日）はとりあえず同日を仮セット
-    document.getElementById('sellDate').value = nextOpenDay.toISOString().split('T')[0];
+    document.getElementById('buyDate').value = formatDateToYYYYMMDD(nextOpenDay);
+    document.getElementById('sellDate').value = formatDateToYYYYMMDD(nextOpenDay);
 }
 
 function generateAutoScheduleTable() {
@@ -510,7 +511,8 @@ function generateAutoScheduleTable() {
         let gapDays = Math.ceil((ochDate - saishyuDate) / (1000 * 60 * 60 * 24));
         let isHighlight = gapDays > 1; 
         
-        let rawOchiStr = ochDate.toISOString().split('T')[0];
+        // 時差ズレを起こさない安全なフォーマット関数を使用
+        let rawOchiStr = formatDateToYYYYMMDD(ochDate);
         
         let fSaishyu = `${saishyuDate.getMonth()+1}月${saishyuDate.getDate()}日(${dayNames[saishyuDate.getDay()]})`;
         let fOchi = `${ochDate.getMonth()+1}月${ochDate.getDate()}日(${dayNames[ochDate.getDay()]})`;
@@ -537,20 +539,15 @@ function generateAutoScheduleTable() {
     }
 }
 
-// 【改良１の仕様変更反映】
 function applyScheduleToInput(sellDateStr) {
-    // 1. 売却日（現渡日）には早見表の「権利落ち日」を確実にプリセット
+    // ズレのない正確な権利落ち日が売却日にセットされます
     document.getElementById('sellDate').value = sellDateStr;
     
-    // 2. 購入日（仕込み日）には「ツールを操作している現在時点の次の開場日」を計算してプリセット
     let today = new Date();
     let nextOpenDay = getNextBusinessDay(today);
-    document.getElementById('buyDate').value = nextOpenDay.toISOString().split('T')[0];
+    document.getElementById('buyDate').value = formatDateToYYYYMMDD(nextOpenDay);
     
-    // 一括再計算
     calculateAll();
-    
-    // スクロール移動
     document.getElementById('buyDate').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
