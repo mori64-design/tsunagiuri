@@ -1,11 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>つなぎ売りコスト一括比較シミュレーター</title>
-    <!-- ファビコンエラー対策 -->
     <link rel="icon" href="data:,">
     <style>
         body {
@@ -22,13 +20,30 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            position: relative; /* バージョン配置用 */
+        }
+        .header-area {
+            border-bottom: 2px solid #1F497D;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
         }
         h1 {
             font-size: 18px;
             color: #1F497D;
-            border-bottom: 2px solid #1F497D;
-            padding-bottom: 8px;
-            margin-top: 0;
+            margin: 0;
+            padding: 0;
+        }
+        .version-tag {
+            font-size: 11px;
+            color: #7f8c8d;
+            font-weight: bold;
+            background-color: #f0f3f4;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #d5dbdb;
         }
         .desc {
             font-size: 11px;
@@ -195,7 +210,11 @@
 <body>
 
 <div class="container">
-    <h1>つなぎ売りコスト一括比較シミュレーター</h1>
+    <div class="header-area">
+        <h1>つなぎ売りコスト一括比較シミュレーター</h1>
+        <div class="version-tag">Ver 1.10</div>
+    </div>
+    
     <div class="desc">
         ※黄色の項目を変更してください。インターネットから最新の祝日データを自動取得して受渡日を計算します。
     </div>
@@ -368,9 +387,8 @@ function getDaysDiff(d1Str, d2Str) {
     return diffDays >= 0 ? diffDays + 1 : 0;
 }
 
-// 【変更箇所】 信用売りの片道金額のみを判定基準に修正
 function calculateMatsuiFee(oneWayFunds) {
-    let targetVolume = oneWayFunds; // 往復(oneWayFunds * 2)ではなく片道のみで判定
+    let targetVolume = oneWayFunds; 
     if (targetVolume <= 500000) {
         return 0;
     } else if (targetVolume <= 1000000) {
@@ -443,7 +461,7 @@ function calculateAll() {
             if (id === 'nikko') {
                 let buyKinri = parseFloat(row.cells[4].querySelector('input').value) || 0;
                 let buyRate = buyKinri / 100;
-                let buyKinriCost = Math.floor(funds * buyRate * 1 / 365); // 1日分現引ルート
+                let buyKinriCost = Math.floor(funds * buyRate * 1 / 365); 
                 loanCost += buyKinriCost;
             }
             
