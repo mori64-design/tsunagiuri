@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>つなぎ売りコスト一括比較シミュレーター</title>
-    <!-- ファビコンエラー対策 -->
     <link rel="icon" href="data:,">
     <style>
         body {
@@ -176,12 +175,29 @@
         }
         .schedule-table td {
             text-align: center;
+            padding: 6px 4px;
         }
         .schedule-table tr:nth-child(even) {
             background-color: #f9fafb;
         }
         .schedule-table .highlight-row {
             background-color: #FFF2CC;
+        }
+        
+        /* 連動用ボタンのスタイル */
+        .apply-btn {
+            background-color: #1F497D;
+            color: white;
+            border: none;
+            padding: 3px 8px;
+            font-size: 11px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+        }
+        .apply-btn:hover {
+            background-color: #133358;
         }
 
         .master-table input {
@@ -237,7 +253,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.30</div>
+        <div class="version-tag">Ver 1.40</div>
     </div>
     
     <div class="desc">
@@ -246,10 +262,18 @@
     
     <div id="holidayStatus" class="status-badge status-loading">祝日データを受信中...</div>
 
-    <!-- 権利スケジュール早見表（JavaScriptにより完全自動生成されます） -->
     <div class="toggle-btn" onclick="toggleSection('schedule-section')">📅 【自動更新】各月の権利スケジュール早見表を開く/閉じる</div>
     <div id="schedule-section" class="toggle-content">
-        <div class="desc" style="margin-bottom: 8px;">※直近1年間の月末権利確定スケジュール（土日祝・年末自動考慮）を自動計算しています。</div>
+        <div style="margin-bottom: 12px; background: #eef2f7; padding: 8px; border-radius: 4px; display: flex; align-items: center; gap: 10px;">
+            <label style="margin: 0; font-weight: bold; font-size: 12px; color: #1F497D;">表示する権利区分:</label>
+            <select id="scheduleTargetDay" onchange="generateAutoScheduleTable()" style="width: auto; background: white; border: 1px solid #ccc; border-radius: 3px; padding: 2px 5px; font-size: 12px;">
+                <option value="月末" selected>月末権利確定（標準）</option>
+                <option value="20日">20日権利確定（ウエルシア、ピーシーデポ等）</option>
+                <option value="15日">15日権利確定（ツルハ、サツドラ等）</option>
+            </select>
+        </div>
+        
+        <div class="desc" style="margin-bottom: 8px;">※指定区間の直近1年間のスケジュール（土日祝・年末自動考慮）を自動計算しています。</div>
         <table class="schedule-table" id="autoScheduleTable">
             <thead>
                 <tr>
@@ -257,11 +281,11 @@
                     <th>権利付最終日<br><small>(購入日)</small></th>
                     <th>権利落ち日<br><small>(現渡日)</small></th>
                     <th>権利確定日<br><small>(受渡日ベース)</small></th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
-                <!-- ここにスクリプトで自動挿入されます -->
-            </tbody>
+                </tbody>
         </table>
         <div class="table-note" style="color: #c00000; font-weight: bold; padding-left: 0;">
             ※背景が黄色の月は、権利付最終日から現渡日の間に土日・祝日を挟むため、貸株日数が多くなりコストが増加しやすい期間です。
@@ -404,20 +428,17 @@ async function fetchJapaneseHolidays() {
         statusBadge.innerText = "● 外部祝日取得エラー（内蔵バックアップで動作中）";
         statusBadge.className = "status-badge status-fallback";
     }
-    // 祝日データ確定後に、早見表とシミュレーションを生成
     generateAutoScheduleTable();
     calculateAll();
 }
 
-// 指定した日が市場営業日かどうかを判定
 function isBusinessDay(date) {
     let dayOfWeek = date.getDay();
-    if (dayOfWeek === 0 || dayOfWeek === 6) return false; // 土日
+    if (dayOfWeek === 0 || dayOfWeek === 6) return false; 
     
     let formattedDate = date.toISOString().split('T')[0];
-    if (holidays.has(formattedDate)) return false; // 祝日
+    if (holidays.has(formattedDate)) return false; 
     
-    // 年末年始の取引所休業 (12/31 ~ 1/3)
     let month = date.getMonth() + 1;
     let day = date.getDate();
     if (month === 12 && day === 31) return false;
@@ -426,7 +447,6 @@ function isBusinessDay(date) {
     return true;
 }
 
-// 基準日から「N営業日前」の取引日を取得する
 function getPreviousBusinessDay(baseDate, offsetDays) {
     let date = new Date(baseDate.getTime());
     let count = 0;
@@ -439,43 +459,54 @@ function getPreviousBusinessDay(baseDate, offsetDays) {
     return new Date(date.getTime());
 }
 
-// 月末の権利確定スケジュールを自動計算して表を生成する
+// 【1&3の機能追加】権利区分に応じたスケジュール自動生成ロジック
 function generateAutoScheduleTable() {
     const tbody = document.querySelector('#autoScheduleTable tbody');
     tbody.innerHTML = "";
     
+    const targetType = document.getElementById('scheduleTargetDay').value;
     let today = new Date();
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
     
-    // 今月を含めた直近12ヶ月分をループ出力
     for (let i = 0; i < 12; i++) {
         let currentLoopDate = new Date(today.getFullYear(), today.getMonth() + i, 1);
         let year = currentLoopDate.getFullYear();
         let month = currentLoopDate.getMonth() + 1;
         
-        // 1. 各月の権利確定日（月末の最終営業日）を特定
-        let closingDate = new Date(year, month, 0); // 月の最終日
+        let closingDate;
+        
+        // 権利区分に応じた「ベースとなる日」の割り出し
+        if (targetType === "月末") {
+            closingDate = new Date(year, month, 0); // 月末日
+        } else if (targetType === "20日") {
+            closingDate = new Date(year, month - 1, 20); // その月の20日
+        } else if (targetType === "15日") {
+            closingDate = new Date(year, month - 1, 15); // その月の15日
+        }
+        
+        // ベース日が非営業日の場合は、前営業日に前倒し（権利確定日）
         while (!isBusinessDay(closingDate)) {
             closingDate.setDate(closingDate.getDate() - 1);
         }
         
-        // 2. 権利落ち日（1営業日前）と、権利付最終日（2営業日前）を算出
+        // 権利落ち日(1営業日前)・権利付最終日(2営業日前)の算出
         let ochDate = getPreviousBusinessDay(closingDate, 1);
         let saishyuDate = getPreviousBusinessDay(closingDate, 2);
         
-        // 3. 注意月（金利が多くかかる「持ち越し」が発生するか）の判定
-        // 権利付最終日の翌日（カレンダー上）から権利落ち日（現渡日）までの日数を計算
         let gapDays = Math.ceil((ochDate - saishyuDate) / (1000 * 60 * 60 * 24));
-        let isHighlight = gapDays > 1; // 翌日が現渡じゃない＝土日祝をまたいでいる
+        let isHighlight = gapDays > 1; 
         
-        // フォーマット整形
-        let fSaishyu = `${month}月${saishyuDate.getDate()}日(${dayNames[saishyuDate.getDay()]})`;
-        let fOchi = `${month}月${ochDate.getDate()}日(${dayNames[ochDate.getDay()]})`;
-        let fClosing = `${month}月${closingDate.getDate()}日(${dayNames[closingDate.getDay()]})`;
+        // YYYY-MM-DD型（インプットフォーム同期用値）
+        let rawSaishyuStr = saishyuDate.toISOString().split('T')[0];
+        let rawOchiStr = ochDate.toISOString().split('T')[0];
         
-        // 年末（12月）などの特記事項テキスト
+        // 画面表示用フォーマット
+        let fSaishyu = `${saishyuDate.getMonth()+1}月${saishyuDate.getDate()}日(${dayNames[saishyuDate.getDay()]})`;
+        let fOchi = `${ochDate.getMonth()+1}月${ochDate.getDate()}日(${dayNames[ochDate.getDay()]})`;
+        let fClosing = `${closingDate.getMonth()+1}月${closingDate.getDate()}日(${dayNames[closingDate.getDay()]})`;
+        
         let noteText = "";
-        if (month === 12) {
+        if (targetType === "月末" && month === 12) {
             noteText = ` <br><small style="color:#d35400;">※年末前倒し</small>`;
         }
         
@@ -484,14 +515,28 @@ function generateAutoScheduleTable() {
             tr.className = 'highlight-row';
         }
         
+        // 【1の対応】ワンクリック連動用のボタンを最後のセルに追加
         tr.innerHTML = `
             <td><strong>${year}年${month}月</strong></td>
             <td>${fSaishyu}</td>
             <td>${fOchi}</td>
             <td>${fClosing}${noteText}</td>
+            <td><button type="button" class="apply-btn" onclick="applyScheduleToInput('${rawSaishyuStr}', '${rawOchiStr}')">適用</button></td>
         `;
         tbody.appendChild(tr);
     }
+}
+
+// 【1の対応】早見表からシミュレーターへのデータ連動関数
+function applyScheduleToInput(buyDateStr, sellDateStr) {
+    document.getElementById('buyDate').value = buyDateStr;
+    document.getElementById('sellDate').value = sellDateStr;
+    
+    // 値をセットした後に一括再計算を実行
+    calculateAll();
+    
+    // 連動がわかりやすいよう、入力欄へ画面を軽くスクロール
+    document.getElementById('buyDate').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function getSettlementDate(dateString) {
