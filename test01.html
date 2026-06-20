@@ -150,7 +150,6 @@
             font-weight: bold;
             color: #006100;
         }
-        /* 【追加】期限切れエラー用の行スタイル */
         #resultTable tr.error-row {
             background-color: #FCE4D6 !important;
             color: #C00000;
@@ -272,7 +271,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.45</div>
+        <div class="version-tag">Ver 1.46</div>
     </div>
     
     <div class="desc">
@@ -508,19 +507,6 @@ function getNextBusinessDay(baseDate) {
     return date;
 }
 
-// 【追加】指定日から数えてN営業日後の日付を返す関数
-function getNextBusinessDayByCount(baseDate, offsetDays) {
-    let date = new Date(baseDate.getTime());
-    let count = 0;
-    while (count < offsetDays) {
-        date.setDate(date.getDate() + 1);
-        if (isBusinessDay(date)) {
-            count++;
-        }
-    }
-    return date;
-}
-
 function initDefaultDates() {
     let today = new Date();
     let nextOpenDay = getNextBusinessDay(today);
@@ -642,23 +628,6 @@ function changeSellDate() {
     calculateAll();
 }
 
-// 【追加】楽天短期の返済期限（14日目の前営業日）を計算する関数
-function calculateRakutenShortExpiry(buyDateStr) {
-    let baseDate = new Date(buyDateStr);
-    if (isNaN(baseDate.getTime())) return null;
-
-    // 建日（購入日）から起算して14日目（13日を加算）
-    let day14 = new Date(baseDate.getTime());
-    day14.setDate(day14.getDate() + 13);
-
-    // 14日目が営業日ならそれが最終返済日。土日祝ならその前営業日まで遡る
-    let expiryDate = new Date(day14.getTime());
-    if (!isBusinessDay(expiryDate)) {
-        expiryDate = getPreviousBusinessDay(expiryDate, 1);
-    }
-    return expiryDate;
-}
-
 function calculateAll() {
     let price = parseFloat(document.getElementById('stockPrice').value) || 0;
     let volume = parseFloat(document.getElementById('stockVolume').value) || 0;
@@ -680,9 +649,13 @@ function calculateAll() {
     let currentMatsuiFee = calculateMatsuiFee(funds);
     document.getElementById('matsuiFeeDisplay').value = currentMatsuiFee;
 
-    // 【追加】楽天短期の期限判定用データを取得
-    let rakutenExpiryDate = calculateRakutenShortExpiry(buyDate);
+    // 【大幅変更】売却日（現渡ベース）から過去に「13営業日」遡った日（＝最速の購入可能日）を逆算
     let sellDateObj = new Date(sellDate);
+    let earliestBuyDateObj = null;
+    if (!isNaN(sellDateObj.getTime())) {
+        earliestBuyDateObj = getPreviousBusinessDay(sellDateObj, 13);
+    }
+    let buyDateObj = new Date(buyDate);
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
     let results = [];
@@ -708,13 +681,13 @@ function calculateAll() {
             let loanCostChoki = Math.floor(funds * (rateChoki / 100) * loanDays / 365);
             results.push({ name: `${name} (長期)`, fee: fee, loanCost: loanCostChoki, total: fee + loanCostChoki, isError: false });
 
-            // 【変更】楽天（短期）のみ期限切れ判定を実行
+            // 【変更】営業日ベースでの楽天短期の期限判定
             let isRakutenTankiError = false;
             let errorMsg = "";
-            if (id === 'rakuten' && rakutenExpiryDate && sellDateObj > rakutenExpiryDate) {
+            if (id === 'rakuten' && earliestBuyDateObj && buyDateObj < earliestBuyDateObj) {
                 isRakutenTankiError = true;
-                let expStr = `${rakutenExpiryDate.getMonth()+1}/${rakutenExpiryDate.getDate()}(${dayNames[rakutenExpiryDate.getDay()]})`;
-                errorMsg = `⚠️期限切れ (最終返済: ${expStr})`;
+                let validStr = `${earliestBuyDateObj.getMonth()+1}/${earliestBuyDateObj.getDate()}(${dayNames[earliestBuyDateObj.getDay()]})`;
+                errorMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
             }
 
             let loanCostTanki = Math.floor(funds * (rateTanki / 100) * loanDays / 365);
@@ -747,7 +720,6 @@ function calculateAll() {
         }
     });
 
-    // 最安判定（エラーになっていない行のみを対象にする）
     let validTotals = results.filter(r => !r.isError).map(r => r.total);
     let minTotal = validTotals.length > 0 ? Math.min(...validTotals) : -1;
     
@@ -758,7 +730,7 @@ function calculateAll() {
         let tr = document.createElement('tr');
         
         if (res.isError) {
-            tr.className = 'error-row'; // 期限切れ時は赤っぽい背景
+            tr.className = 'error-row'; 
         } else if (res.total === minTotal && res.total > 0) {
             tr.className = 'cheapest';
         }
