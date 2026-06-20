@@ -82,7 +82,6 @@
             padding: 8px;
         }
         
-        /* 【追加】単位付き入力ボックスのためのボックスインナー構造 */
         .input-with-unit {
             display: flex;
             align-items: center;
@@ -150,6 +149,11 @@
             background-color: #E2EFDA !important;
             font-weight: bold;
             color: #006100;
+        }
+        /* 【追加】期限切れエラー用の行スタイル */
+        #resultTable tr.error-row {
+            background-color: #FCE4D6 !important;
+            color: #C00000;
         }
         
         .table-note {
@@ -268,7 +272,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.44</div>
+        <div class="version-tag">Ver 1.45</div>
     </div>
     
     <div class="desc">
@@ -504,6 +508,19 @@ function getNextBusinessDay(baseDate) {
     return date;
 }
 
+// 【追加】指定日から数えてN営業日後の日付を返す関数
+function getNextBusinessDayByCount(baseDate, offsetDays) {
+    let date = new Date(baseDate.getTime());
+    let count = 0;
+    while (count < offsetDays) {
+        date.setDate(date.getDate() + 1);
+        if (isBusinessDay(date)) {
+            count++;
+        }
+    }
+    return date;
+}
+
 function initDefaultDates() {
     let today = new Date();
     let nextOpenDay = getNextBusinessDay(today);
@@ -625,6 +642,23 @@ function changeSellDate() {
     calculateAll();
 }
 
+// 【追加】楽天短期の返済期限（14日目の前営業日）を計算する関数
+function calculateRakutenShortExpiry(buyDateStr) {
+    let baseDate = new Date(buyDateStr);
+    if (isNaN(baseDate.getTime())) return null;
+
+    // 建日（購入日）から起算して14日目（13日を加算）
+    let day14 = new Date(baseDate.getTime());
+    day14.setDate(day14.getDate() + 13);
+
+    // 14日目が営業日ならそれが最終返済日。土日祝ならその前営業日まで遡る
+    let expiryDate = new Date(day14.getTime());
+    if (!isBusinessDay(expiryDate)) {
+        expiryDate = getPreviousBusinessDay(expiryDate, 1);
+    }
+    return expiryDate;
+}
+
 function calculateAll() {
     let price = parseFloat(document.getElementById('stockPrice').value) || 0;
     let volume = parseFloat(document.getElementById('stockVolume').value) || 0;
@@ -645,6 +679,11 @@ function calculateAll() {
 
     let currentMatsuiFee = calculateMatsuiFee(funds);
     document.getElementById('matsuiFeeDisplay').value = currentMatsuiFee;
+
+    // 【追加】楽天短期の期限判定用データを取得
+    let rakutenExpiryDate = calculateRakutenShortExpiry(buyDate);
+    let sellDateObj = new Date(sellDate);
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
     let results = [];
     let rows = document.querySelectorAll('#master-section .master-table tbody tr');
@@ -667,10 +706,26 @@ function calculateAll() {
             let rateTanki = parseFloat(inputs[1].value) || 0;
 
             let loanCostChoki = Math.floor(funds * (rateChoki / 100) * loanDays / 365);
-            results.push({ name: `${name} (長期)`, fee: fee, loanCost: loanCostChoki, total: fee + loanCostChoki });
+            results.push({ name: `${name} (長期)`, fee: fee, loanCost: loanCostChoki, total: fee + loanCostChoki, isError: false });
+
+            // 【変更】楽天（短期）のみ期限切れ判定を実行
+            let isRakutenTankiError = false;
+            let errorMsg = "";
+            if (id === 'rakuten' && rakutenExpiryDate && sellDateObj > rakutenExpiryDate) {
+                isRakutenTankiError = true;
+                let expStr = `${rakutenExpiryDate.getMonth()+1}/${rakutenExpiryDate.getDate()}(${dayNames[rakutenExpiryDate.getDay()]})`;
+                errorMsg = `⚠️期限切れ (最終返済: ${expStr})`;
+            }
 
             let loanCostTanki = Math.floor(funds * (rateTanki / 100) * loanDays / 365);
-            results.push({ name: `${name} (短期)`, fee: fee, loanCost: loanCostTanki, total: fee + loanCostTanki });
+            results.push({ 
+                name: `${name} (短期)`, 
+                fee: fee, 
+                loanCost: loanCostTanki, 
+                total: fee + loanCostTanki, 
+                isError: isRakutenTankiError,
+                errorText: errorMsg 
+            });
         } else {
             let ippanInput = row.cells[1].querySelector('input');
             let ippan = ippanInput ? (parseFloat(ippanInput.value) || 0) : 0;
@@ -688,26 +743,38 @@ function calculateAll() {
             if (creditType === "制度信用" && (id === 'rakuten' || id === 'sbi')) {
                 displayName = `${name} (制度)`;
             }
-            results.push({ name: displayName, fee: fee, loanCost: loanCost, total: fee + loanCost });
+            results.push({ name: displayName, fee: fee, loanCost: loanCost, total: fee + loanCost, isError: false });
         }
     });
 
-    let minTotal = Math.min(...results.map(r => r.total));
+    // 最安判定（エラーになっていない行のみを対象にする）
+    let validTotals = results.filter(r => !r.isError).map(r => r.total);
+    let minTotal = validTotals.length > 0 ? Math.min(...validTotals) : -1;
+    
     let tbody = document.querySelector('#resultTable tbody');
     tbody.innerHTML = "";
 
     results.forEach(res => {
         let tr = document.createElement('tr');
-        if (res.total === minTotal && res.total > 0) {
+        
+        if (res.isError) {
+            tr.className = 'error-row'; // 期限切れ時は赤っぽい背景
+        } else if (res.total === minTotal && res.total > 0) {
             tr.className = 'cheapest';
         }
         
+        let feeDisplay = res.isError ? "-" : `${res.fee.toLocaleString()}円`;
+        let loanDisplay = res.isError ? "-" : `${res.loanCost.toLocaleString()}円`;
+        let totalDisplay = res.isError ? `<span style="font-weight:bold;">計算不可</span>` : `${res.total.toLocaleString()}円`;
+        let judgeDisplay = res.isError ? res.errorText : ((res.total === minTotal && res.total > 0) ? "★最安" : "");
+        
         tr.innerHTML = `
             <td class="left">${res.name}</td>
-            <td>${res.fee.toLocaleString()}円</td>
-            <td>${res.loanCost.toLocaleString()}円</td>
+            <td>${feeDisplay}</td>
+            <td>${loanDisplay}</td>
             <td class="tooltip">
-                ${res.total.toLocaleString()}円
+                ${totalDisplay}
+                ${res.isError ? '' : `
                 <span class="tooltiptext">
                     <strong>【コスト内訳】</strong><br>
                     往復手数料: ${res.fee.toLocaleString()}円<br>
@@ -715,8 +782,9 @@ function calculateAll() {
                     <hr style="border:0; border-top:1px dashed #666; margin:5px 0;">
                     貸株日数: ${loanDays}日
                 </span>
+                `}
             </td>
-            <td class="center">${(res.total === minTotal && res.total > 0) ? "★最安" : ""}</td>
+            <td class="center" style="font-size:11px; font-weight:bold;">${judgeDisplay}</td>
         `;
         tbody.appendChild(tr);
     });
