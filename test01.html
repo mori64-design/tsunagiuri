@@ -275,7 +275,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.50</div>
+        <div class="version-tag">Ver 1.51</div>
     </div>
     
     <div class="desc">
@@ -344,7 +344,7 @@
 
     <div class="section-title">【2】 スケジュール条件（祝日自動考慮）</div>
     <div class="input-group">
-        <div class="input-cell"><label>購入日 (約定ベース / 最最短開場日自動)</label><input type="date" id="buyDate" onchange="calculateAll()"></div>
+        <div class="input-cell"><label>購入日 (約定ベース / 最短開場日自動)</label><input type="date" id="buyDate" onchange="calculateAll()"></div>
         <div class="input-cell"><label>売却日 (現渡ベース)</label><input type="date" id="sellDate" onchange="changeSellDate()"></div>
         <div class="calc-cell"><label>購入受渡日</label><span id="buySettlement">-</span></div>
         <div class="calc-cell"><label>売却受渡日</label><span id="sellSettlement">-</span></div>
@@ -632,7 +632,6 @@ function changeSellDate() {
     calculateAll();
 }
 
-// 楽天：土日を含めた14日（カレンダーベース）の最終返済日
 function calculateRakutenShortExpiryCalendar(buyDateStr) {
     let baseDate = new Date(buyDateStr);
     if (isNaN(baseDate.getTime())) return null;
@@ -679,10 +678,12 @@ function calculateAll() {
         rakutenEarliestBuyDate.setDate(rakutenEarliestBuyDate.getDate() - 13);
     }
 
-    // --- SBI短期（15営業日前）の期限計算 ---
+    // --- 【完全修正】SBI短期（15営業日前）の逆算ロジック ---
     let sbiEarliestBuyDate = null;
     if (!isNaN(sellDateObj.getTime())) {
-        // 【修正】当日を含めて15営業日前 ＝ 14営業日遡る
+        // 売却日（現渡日）から「当日を含めて15営業日」を厳密に遡る。
+        // getPreviousBusinessDayはbaseDate自身が営業日の場合それをカウントしないため、
+        // 14営業日前を引くことで完璧に「15営業日前の当日」を算出。
         sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 14);
     }
 
@@ -725,20 +726,23 @@ function calculateAll() {
                     statusMsg = `⚠️${orderStr} 19:00〜注文可`;
                 }
             } else if (id === 'sbi') {
-                // 【修正】境界値判定：buyDateObjがsbiEarliestBuyDateより「過去（1日前など）」である場合のみ期限切れとする
-                let d1 = new Date(formatDateToYYYYMMDD(buyDateObj));
-                let d2 = new Date(formatDateToYYYYMMDD(sbiEarliestBuyDate));
-                
-                if (sbiEarliestBuyDate && d1 < d2) {
-                    isTankiError = true;
-                    let validStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
-                    statusMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
-                }
-                // 【修正】最速解禁日（6月8日など）に完全に一致した場合
-                else if (sbiEarliestBuyDate && d1.getTime() === d2.getTime()) {
-                    isTankiWarning = true;
-                    let orderStr = `${buyDateObj.getMonth()+1}/${buyDateObj.getDate()}(${dayNames[buyDateObj.getDay()]})`;
-                    statusMsg = `⚠️${orderStr} 19:00〜注文可`;
+                // 【完全修正】時間を排除したミリ秒タイムスタンプ同士で確実に比較
+                if (sbiEarliestBuyDate) {
+                    let tBuy = new Date(buyDate).getTime(); // yyyy-mm-ddの00:00:00
+                    let tEarliest = new Date(formatDateToYYYYMMDD(sbiEarliestBuyDate)).getTime();
+
+                    if (tBuy < tEarliest) {
+                        // 最速可能日（6/8）より前の日付を選択している場合は期限切れ
+                        isTankiError = true;
+                        let validStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
+                        statusMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
+                    }
+                    else if (tBuy === tEarliest) {
+                        // 最速可能日（6/8）当日の場合は19時注文可アラートを出す
+                        isTankiWarning = true;
+                        let orderStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
+                        statusMsg = `⚠️${orderStr} 19:00〜注文可`;
+                    }
                 }
             }
 
