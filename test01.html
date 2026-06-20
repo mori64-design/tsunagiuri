@@ -275,7 +275,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.61</div>
+        <div class="version-tag">Ver 1.62</div>
     </div>
     
     <div class="desc">
@@ -665,10 +665,10 @@ function calculateAll() {
         rakutenEarliestBuyDate.setDate(rakutenEarliestBuyDate.getDate() - 13);
     }
 
-    // --- SBI短期の逆算（6/29が現渡日の場合、14営業日前＝6/8が解禁日） ---
+    // --- 【修正】SBI短期の逆算（6/29が現渡日の場合、15営業日前＝6/8が解禁日となるようオフセットを15に修正） ---
     let sbiEarliestBuyDate = null;
     if (!isNaN(sellDateObj.getTime())) {
-        sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 14);
+        sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 15);
     }
 
     let results = [];
@@ -702,7 +702,6 @@ function calculateAll() {
                 let tRakutenEarliest = new Date(formatDateToYYYYMMDD(rakutenEarliestBuyDate)).getTime();
                 
                 if (tBuy === tRakutenEarliest) {
-                    // 【修正】19:00〜注文可 の表記に統一
                     isTankiError = true;
                     isTankiWarning = true; 
                     let orderStr = `${rakutenEarliestBuyDate.getMonth()+1}/${rakutenEarliestBuyDate.getDate()}(${dayNames[rakutenEarliestBuyDate.getDay()]})`;
@@ -718,7 +717,6 @@ function calculateAll() {
                 let tSbiEarliest = new Date(formatDateToYYYYMMDD(sbiEarliestBuyDate)).getTime();
                 
                 if (tBuy === tSbiEarliest) {
-                    // 【修正】19:00〜注文可 の表記に統一
                     isTankiError = true;
                     isTankiWarning = true; 
                     let orderStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
