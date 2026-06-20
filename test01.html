@@ -275,7 +275,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.49</div>
+        <div class="version-tag">Ver 1.50</div>
     </div>
     
     <div class="desc">
@@ -344,7 +344,7 @@
 
     <div class="section-title">【2】 スケジュール条件（祝日自動考慮）</div>
     <div class="input-group">
-        <div class="input-cell"><label>購入日 (約定ベース / 最短開場日自動)</label><input type="date" id="buyDate" onchange="calculateAll()"></div>
+        <div class="input-cell"><label>購入日 (約定ベース / 最最短開場日自動)</label><input type="date" id="buyDate" onchange="calculateAll()"></div>
         <div class="input-cell"><label>売却日 (現渡ベース)</label><input type="date" id="sellDate" onchange="changeSellDate()"></div>
         <div class="calc-cell"><label>購入受渡日</label><span id="buySettlement">-</span></div>
         <div class="calc-cell"><label>売却受渡日</label><span id="sellSettlement">-</span></div>
@@ -673,7 +673,6 @@ function calculateAll() {
     // --- 楽天短期の期限・注意喚起の計算 ---
     let rakutenExpiryDate = calculateRakutenShortExpiryCalendar(buyDate);
     
-    // 逆算：売却日（現渡日）からカレンダーベースで最速の購入可能日（13日前）を求める
     let rakutenEarliestBuyDate = null;
     if (!isNaN(sellDateObj.getTime())) {
         rakutenEarliestBuyDate = new Date(sellDateObj.getTime());
@@ -683,7 +682,8 @@ function calculateAll() {
     // --- SBI短期（15営業日前）の期限計算 ---
     let sbiEarliestBuyDate = null;
     if (!isNaN(sellDateObj.getTime())) {
-        sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 14); // 当日含めて15営業日前＝14営業日前
+        // 【修正】当日を含めて15営業日前 ＝ 14営業日遡る
+        sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 14);
     }
 
     let results = [];
@@ -714,32 +714,30 @@ function calculateAll() {
             let statusMsg = "";
 
             if (id === 'rakuten') {
-                // 期限切れ判定（売却日が最終返済日を超えている場合）
                 if (rakutenExpiryDate && sellDateObj > rakutenExpiryDate) {
                     isTankiError = true;
                     let expStr = `${rakutenExpiryDate.getMonth()+1}/${rakutenExpiryDate.getDate()}(${dayNames[rakutenExpiryDate.getDay()]})`;
                     statusMsg = `⚠️期限切れ (最終返済: ${expStr})`;
                 } 
-                // 19時注文可能の注意喚起（購入日が最速解禁日（13日前）と一致する場合）
                 else if (rakutenEarliestBuyDate && buyDateObj.getTime() === rakutenEarliestBuyDate.getTime()) {
                     isTankiWarning = true;
-                    // 【修正】購入日（16日）当日の夜19時から発注可能
                     let orderStr = `${buyDateObj.getMonth()+1}/${buyDateObj.getDate()}(${dayNames[buyDateObj.getDay()]})`;
                     statusMsg = `⚠️${orderStr} 19:00〜注文可`;
                 }
             } else if (id === 'sbi') {
-                // 【修正】SBI一般短期：15営業日前より前（購入日が最速可能日より過去）なら期限切れ
-                if (sbiEarliestBuyDate && buyDateObj < sbiEarliestBuyDate) {
+                // 【修正】境界値判定：buyDateObjがsbiEarliestBuyDateより「過去（1日前など）」である場合のみ期限切れとする
+                let d1 = new Date(formatDateToYYYYMMDD(buyDateObj));
+                let d2 = new Date(formatDateToYYYYMMDD(sbiEarliestBuyDate));
+                
+                if (sbiEarliestBuyDate && d1 < d2) {
                     isTankiError = true;
                     let validStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
                     statusMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
                 }
-                // 【修正】最速解禁日に一致した場合
-                else if (sbiEarliestBuyDate && buyDateObj.getTime() === sbiEarliestBuyDate.getTime()) {
+                // 【修正】最速解禁日（6月8日など）に完全に一致した場合
+                else if (sbiEarliestBuyDate && d1.getTime() === d2.getTime()) {
                     isTankiWarning = true;
-                    // 6月8日（月）が解禁日なら、その前の営業日（6月5日金曜）の19時がフライング注文開始時刻
-                    let orderDateObj = getPreviousBusinessDay(buyDateObj, 1);
-                    let orderStr = `${orderDateObj.getMonth()+1}/${orderDateObj.getDate()}(${dayNames[orderDateObj.getDay()]})`;
+                    let orderStr = `${buyDateObj.getMonth()+1}/${buyDateObj.getDate()}(${dayNames[buyDateObj.getDay()]})`;
                     statusMsg = `⚠️${orderStr} 19:00〜注文可`;
                 }
             }
