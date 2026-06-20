@@ -154,6 +154,10 @@
             background-color: #FCE4D6 !important;
             color: #C00000;
         }
+        #resultTable tr.warning-row {
+            background-color: #FFF2CC !important;
+            color: #7F6000;
+        }
         
         .table-note {
             font-size: 11px;
@@ -271,7 +275,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.46</div>
+        <div class="version-tag">Ver 1.48</div>
     </div>
     
     <div class="desc">
@@ -628,6 +632,19 @@ function changeSellDate() {
     calculateAll();
 }
 
+// 楽天：土日を含めた14日（カレンダーベース）の最終返済日
+function calculateRakutenShortExpiryCalendar(buyDateStr) {
+    let baseDate = new Date(buyDateStr);
+    if (isNaN(baseDate.getTime())) return null;
+    let day14 = new Date(baseDate.getTime());
+    day14.setDate(day14.getDate() + 13);
+    let expiryDate = new Date(day14.getTime());
+    if (!isBusinessDay(expiryDate)) {
+        expiryDate = getPreviousBusinessDay(expiryDate, 1);
+    }
+    return expiryDate;
+}
+
 function calculateAll() {
     let price = parseFloat(document.getElementById('stockPrice').value) || 0;
     let volume = parseFloat(document.getElementById('stockVolume').value) || 0;
@@ -649,14 +666,25 @@ function calculateAll() {
     let currentMatsuiFee = calculateMatsuiFee(funds);
     document.getElementById('matsuiFeeDisplay').value = currentMatsuiFee;
 
-    // 【大幅変更】売却日（現渡ベース）から過去に「13営業日」遡った日（＝最速の購入可能日）を逆算
     let sellDateObj = new Date(sellDate);
-    let earliestBuyDateObj = null;
-    if (!isNaN(sellDateObj.getTime())) {
-        earliestBuyDateObj = getPreviousBusinessDay(sellDateObj, 13);
-    }
     let buyDateObj = new Date(buyDate);
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+
+    // --- 楽天短期の期限・注意喚起の計算 ---
+    let rakutenExpiryDate = calculateRakutenShortExpiryCalendar(buyDate);
+    
+    // 逆算：売却日（現渡日）からカレンダーベースで最速の購入可能日（13日前）を求める
+    let rakutenEarliestBuyDate = null;
+    if (!isNaN(sellDateObj.getTime())) {
+        rakutenEarliestBuyDate = new Date(sellDateObj.getTime());
+        rakutenEarliestBuyDate.setDate(rakutenEarliestBuyDate.getDate() - 13);
+    }
+
+    // --- SBI短期（15営業日前）の期限計算 ---
+    let sbiEarliestBuyDate = null;
+    if (!isNaN(sellDateObj.getTime())) {
+        sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 14); // 当日含めて15営業日前＝14営業日遡る
+    }
 
     let results = [];
     let rows = document.querySelectorAll('#master-section .master-table tbody tr');
@@ -679,15 +707,41 @@ function calculateAll() {
             let rateTanki = parseFloat(inputs[1].value) || 0;
 
             let loanCostChoki = Math.floor(funds * (rateChoki / 100) * loanDays / 365);
-            results.push({ name: `${name} (長期)`, fee: fee, loanCost: loanCostChoki, total: fee + loanCostChoki, isError: false });
+            results.push({ name: `${name} (長期)`, fee: fee, loanCost: loanCostChoki, total: fee + loanCostChoki, isError: false, isWarning: false });
 
-            // 【変更】営業日ベースでの楽天短期の期限判定
-            let isRakutenTankiError = false;
-            let errorMsg = "";
-            if (id === 'rakuten' && earliestBuyDateObj && buyDateObj < earliestBuyDateObj) {
-                isRakutenTankiError = true;
-                let validStr = `${earliestBuyDateObj.getMonth()+1}/${earliestBuyDateObj.getDate()}(${dayNames[earliestBuyDateObj.getDay()]})`;
-                errorMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
+            let isTankiError = false;
+            let isTankiWarning = false;
+            let statusMsg = "";
+
+            if (id === 'rakuten') {
+                // 期限切れ判定（売却日が最終返済日を超えている場合）
+                if (rakutenExpiryDate && sellDateObj > rakutenExpiryDate) {
+                    isTankiError = true;
+                    let expStr = `${rakutenExpiryDate.getMonth()+1}/${rakutenExpiryDate.getDate()}(${dayNames[rakutenExpiryDate.getDay()]})`;
+                    statusMsg = `⚠️期限切れ (最終返済: ${expStr})`;
+                } 
+                // 19時注文可能の注意喚起（購入日が最速解禁日（13日前）と一致、またはそれ以前のギリギリを攻めている場合）
+                else if (rakutenEarliestBuyDate && buyDateObj.getTime() === rakutenEarliestBuyDate.getTime()) {
+                    isTankiWarning = true;
+                    // 前営業日（注文を仕込む日）を計算。約定日＝購入日なので、発注はその前開場日の19時。
+                    let orderDateObj = getPreviousBusinessDay(buyDateObj, 1);
+                    let orderStr = `${orderDateObj.getMonth()+1}/${orderDateObj.getDate()}(${dayNames[orderDateObj.getDay()]})`;
+                    statusMsg = `⚠️${orderStr} 19:00〜注文可`;
+                }
+            } else if (id === 'sbi') {
+                // SBI一般短期：15営業日前より前なら期限切れ
+                if (sbiEarliestBuyDate && buyDateObj < sbiEarliestBuyDate) {
+                    isTankiError = true;
+                    let validStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
+                    statusMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
+                }
+                // SBIの最速フライング（前営業日19時）の注意喚起
+                else if (sbiEarliestBuyDate && buyDateObj.getTime() === sbiEarliestBuyDate.getTime()) {
+                    isTankiWarning = true;
+                    let orderDateObj = getPreviousBusinessDay(buyDateObj, 1);
+                    let orderStr = `${orderDateObj.getMonth()+1}/${orderDateObj.getDate()}(${dayNames[orderDateObj.getDay()]})`;
+                    statusMsg = `⚠️${orderStr} 19:00〜注文可`;
+                }
             }
 
             let loanCostTanki = Math.floor(funds * (rateTanki / 100) * loanDays / 365);
@@ -696,8 +750,9 @@ function calculateAll() {
                 fee: fee, 
                 loanCost: loanCostTanki, 
                 total: fee + loanCostTanki, 
-                isError: isRakutenTankiError,
-                errorText: errorMsg 
+                isError: isTankiError,
+                isWarning: isTankiWarning,
+                errorText: statusMsg 
             });
         } else {
             let ippanInput = row.cells[1].querySelector('input');
@@ -716,7 +771,7 @@ function calculateAll() {
             if (creditType === "制度信用" && (id === 'rakuten' || id === 'sbi')) {
                 displayName = `${name} (制度)`;
             }
-            results.push({ name: displayName, fee: fee, loanCost: loanCost, total: fee + loanCost, isError: false });
+            results.push({ name: displayName, fee: fee, loanCost: loanCost, total: fee + loanCost, isError: false, isWarning: false });
         }
     });
 
@@ -731,6 +786,8 @@ function calculateAll() {
         
         if (res.isError) {
             tr.className = 'error-row'; 
+        } else if (res.isWarning) {
+            tr.className = 'warning-row'; // 注意喚起は薄い黄色
         } else if (res.total === minTotal && res.total > 0) {
             tr.className = 'cheapest';
         }
@@ -738,7 +795,7 @@ function calculateAll() {
         let feeDisplay = res.isError ? "-" : `${res.fee.toLocaleString()}円`;
         let loanDisplay = res.isError ? "-" : `${res.loanCost.toLocaleString()}円`;
         let totalDisplay = res.isError ? `<span style="font-weight:bold;">計算不可</span>` : `${res.total.toLocaleString()}円`;
-        let judgeDisplay = res.isError ? res.errorText : ((res.total === minTotal && res.total > 0) ? "★最安" : "");
+        let judgeDisplay = res.isError || res.isWarning ? res.errorText : ((res.total === minTotal && res.total > 0) ? "★最安" : "");
         
         tr.innerHTML = `
             <td class="left">${res.name}</td>
