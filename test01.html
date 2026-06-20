@@ -275,7 +275,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.48</div>
+        <div class="version-tag">Ver 1.49</div>
     </div>
     
     <div class="desc">
@@ -683,7 +683,7 @@ function calculateAll() {
     // --- SBI短期（15営業日前）の期限計算 ---
     let sbiEarliestBuyDate = null;
     if (!isNaN(sellDateObj.getTime())) {
-        sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 14); // 当日含めて15営業日前＝14営業日遡る
+        sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 14); // 当日含めて15営業日前＝14営業日前
     }
 
     let results = [];
@@ -720,24 +720,24 @@ function calculateAll() {
                     let expStr = `${rakutenExpiryDate.getMonth()+1}/${rakutenExpiryDate.getDate()}(${dayNames[rakutenExpiryDate.getDay()]})`;
                     statusMsg = `⚠️期限切れ (最終返済: ${expStr})`;
                 } 
-                // 19時注文可能の注意喚起（購入日が最速解禁日（13日前）と一致、またはそれ以前のギリギリを攻めている場合）
+                // 19時注文可能の注意喚起（購入日が最速解禁日（13日前）と一致する場合）
                 else if (rakutenEarliestBuyDate && buyDateObj.getTime() === rakutenEarliestBuyDate.getTime()) {
                     isTankiWarning = true;
-                    // 前営業日（注文を仕込む日）を計算。約定日＝購入日なので、発注はその前開場日の19時。
-                    let orderDateObj = getPreviousBusinessDay(buyDateObj, 1);
-                    let orderStr = `${orderDateObj.getMonth()+1}/${orderDateObj.getDate()}(${dayNames[orderDateObj.getDay()]})`;
+                    // 【修正】購入日（16日）当日の夜19時から発注可能
+                    let orderStr = `${buyDateObj.getMonth()+1}/${buyDateObj.getDate()}(${dayNames[buyDateObj.getDay()]})`;
                     statusMsg = `⚠️${orderStr} 19:00〜注文可`;
                 }
             } else if (id === 'sbi') {
-                // SBI一般短期：15営業日前より前なら期限切れ
+                // 【修正】SBI一般短期：15営業日前より前（購入日が最速可能日より過去）なら期限切れ
                 if (sbiEarliestBuyDate && buyDateObj < sbiEarliestBuyDate) {
                     isTankiError = true;
                     let validStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
                     statusMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
                 }
-                // SBIの最速フライング（前営業日19時）の注意喚起
+                // 【修正】最速解禁日に一致した場合
                 else if (sbiEarliestBuyDate && buyDateObj.getTime() === sbiEarliestBuyDate.getTime()) {
                     isTankiWarning = true;
+                    // 6月8日（月）が解禁日なら、その前の営業日（6月5日金曜）の19時がフライング注文開始時刻
                     let orderDateObj = getPreviousBusinessDay(buyDateObj, 1);
                     let orderStr = `${orderDateObj.getMonth()+1}/${orderDateObj.getDate()}(${dayNames[orderDateObj.getDay()]})`;
                     statusMsg = `⚠️${orderStr} 19:00〜注文可`;
@@ -787,7 +787,7 @@ function calculateAll() {
         if (res.isError) {
             tr.className = 'error-row'; 
         } else if (res.isWarning) {
-            tr.className = 'warning-row'; // 注意喚起は薄い黄色
+            tr.className = 'warning-row'; 
         } else if (res.total === minTotal && res.total > 0) {
             tr.className = 'cheapest';
         }
