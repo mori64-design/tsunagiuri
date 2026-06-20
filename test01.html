@@ -275,7 +275,7 @@
 <div class="container">
     <div class="header-area">
         <h1>つなぎ売りコスト一括比較シミュレーター</h1>
-        <div class="version-tag">Ver 1.51</div>
+        <div class="version-tag">Ver 1.61</div>
     </div>
     
     <div class="desc">
@@ -632,18 +632,6 @@ function changeSellDate() {
     calculateAll();
 }
 
-function calculateRakutenShortExpiryCalendar(buyDateStr) {
-    let baseDate = new Date(buyDateStr);
-    if (isNaN(baseDate.getTime())) return null;
-    let day14 = new Date(baseDate.getTime());
-    day14.setDate(day14.getDate() + 13);
-    let expiryDate = new Date(day14.getTime());
-    if (!isBusinessDay(expiryDate)) {
-        expiryDate = getPreviousBusinessDay(expiryDate, 1);
-    }
-    return expiryDate;
-}
-
 function calculateAll() {
     let price = parseFloat(document.getElementById('stockPrice').value) || 0;
     let volume = parseFloat(document.getElementById('stockVolume').value) || 0;
@@ -666,24 +654,20 @@ function calculateAll() {
     document.getElementById('matsuiFeeDisplay').value = currentMatsuiFee;
 
     let sellDateObj = new Date(sellDate);
-    let buyDateObj = new Date(buyDate);
     const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
 
-    // --- 楽天短期の期限・注意喚起の計算 ---
-    let rakutenExpiryDate = calculateRakutenShortExpiryCalendar(buyDate);
-    
+    let tBuy = new Date(buyDate).getTime();
+
+    // --- 楽天短期の逆算（6/29が現渡日の場合、6/16が解禁日） ---
     let rakutenEarliestBuyDate = null;
     if (!isNaN(sellDateObj.getTime())) {
         rakutenEarliestBuyDate = new Date(sellDateObj.getTime());
         rakutenEarliestBuyDate.setDate(rakutenEarliestBuyDate.getDate() - 13);
     }
 
-    // --- 【完全修正】SBI短期（15営業日前）の逆算ロジック ---
+    // --- SBI短期の逆算（6/29が現渡日の場合、14営業日前＝6/8が解禁日） ---
     let sbiEarliestBuyDate = null;
     if (!isNaN(sellDateObj.getTime())) {
-        // 売却日（現渡日）から「当日を含めて15営業日」を厳密に遡る。
-        // getPreviousBusinessDayはbaseDate自身が営業日の場合それをカウントしないため、
-        // 14営業日前を引くことで完璧に「15営業日前の当日」を算出。
         sbiEarliestBuyDate = getPreviousBusinessDay(sellDateObj, 14);
     }
 
@@ -714,35 +698,36 @@ function calculateAll() {
             let isTankiWarning = false;
             let statusMsg = "";
 
-            if (id === 'rakuten') {
-                if (rakutenExpiryDate && sellDateObj > rakutenExpiryDate) {
+            if (id === 'rakuten' && rakutenEarliestBuyDate) {
+                let tRakutenEarliest = new Date(formatDateToYYYYMMDD(rakutenEarliestBuyDate)).getTime();
+                
+                if (tBuy === tRakutenEarliest) {
+                    // 【修正】19:00〜注文可 の表記に統一
                     isTankiError = true;
-                    let expStr = `${rakutenExpiryDate.getMonth()+1}/${rakutenExpiryDate.getDate()}(${dayNames[rakutenExpiryDate.getDay()]})`;
-                    statusMsg = `⚠️期限切れ (最終返済: ${expStr})`;
+                    isTankiWarning = true; 
+                    let orderStr = `${rakutenEarliestBuyDate.getMonth()+1}/${rakutenEarliestBuyDate.getDate()}(${dayNames[rakutenEarliestBuyDate.getDay()]})`;
+                    statusMsg = `⚠️${orderStr} 19:00〜注文可`;
                 } 
-                else if (rakutenEarliestBuyDate && buyDateObj.getTime() === rakutenEarliestBuyDate.getTime()) {
-                    isTankiWarning = true;
-                    let orderStr = `${buyDateObj.getMonth()+1}/${buyDateObj.getDate()}(${dayNames[buyDateObj.getDay()]})`;
+                else if (tBuy < tRakutenEarliest) {
+                    isTankiError = true;
+                    let expStr = `${rakutenEarliestBuyDate.getMonth()+1}/${rakutenEarliestBuyDate.getDate()}(${dayNames[rakutenEarliestBuyDate.getDay()]})`;
+                    statusMsg = `⚠️期限切れ (可能日: ${expStr}〜)`;
+                }
+            } 
+            else if (id === 'sbi' && sbiEarliestBuyDate) {
+                let tSbiEarliest = new Date(formatDateToYYYYMMDD(sbiEarliestBuyDate)).getTime();
+                
+                if (tBuy === tSbiEarliest) {
+                    // 【修正】19:00〜注文可 の表記に統一
+                    isTankiError = true;
+                    isTankiWarning = true; 
+                    let orderStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
                     statusMsg = `⚠️${orderStr} 19:00〜注文可`;
                 }
-            } else if (id === 'sbi') {
-                // 【完全修正】時間を排除したミリ秒タイムスタンプ同士で確実に比較
-                if (sbiEarliestBuyDate) {
-                    let tBuy = new Date(buyDate).getTime(); // yyyy-mm-ddの00:00:00
-                    let tEarliest = new Date(formatDateToYYYYMMDD(sbiEarliestBuyDate)).getTime();
-
-                    if (tBuy < tEarliest) {
-                        // 最速可能日（6/8）より前の日付を選択している場合は期限切れ
-                        isTankiError = true;
-                        let validStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
-                        statusMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
-                    }
-                    else if (tBuy === tEarliest) {
-                        // 最速可能日（6/8）当日の場合は19時注文可アラートを出す
-                        isTankiWarning = true;
-                        let orderStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
-                        statusMsg = `⚠️${orderStr} 19:00〜注文可`;
-                    }
+                else if (tBuy < tSbiEarliest) {
+                    isTankiError = true;
+                    let validStr = `${sbiEarliestBuyDate.getMonth()+1}/${sbiEarliestBuyDate.getDate()}(${dayNames[sbiEarliestBuyDate.getDay()]})`;
+                    statusMsg = `⚠️期限切れ (可能日: ${validStr}〜)`;
                 }
             }
 
@@ -786,10 +771,10 @@ function calculateAll() {
     results.forEach(res => {
         let tr = document.createElement('tr');
         
-        if (res.isError) {
-            tr.className = 'error-row'; 
-        } else if (res.isWarning) {
+        if (res.isError && res.isWarning) {
             tr.className = 'warning-row'; 
+        } else if (res.isError) {
+            tr.className = 'error-row'; 
         } else if (res.total === minTotal && res.total > 0) {
             tr.className = 'cheapest';
         }
